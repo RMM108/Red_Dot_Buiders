@@ -20,7 +20,7 @@ from pathlib import Path
 
 from vector_store import get_chroma_collection, replace_chunks_for
 
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent.parent / "data"
 JSON_PATH = DATA_DIR / "client_correspondence.json"
 COLLECTION_NAME = "correspondence"
 

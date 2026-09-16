@@ -20,9 +20,10 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
+from chunking import paragraph_chunks
 from vector_store import get_chroma_collection, replace_chunks_for
 
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent.parent / "data"
 PDF_PATH = DATA_DIR / "client_complaint_letters.pdf"
 COLLECTION_NAME = "complaints"
 
@@ -37,8 +38,14 @@ def extract_text(pdf_path: Path) -> str:
 
 
 def split_letters(text: str) -> list[dict]:
+    """One chunk per "Complaint Letter" entry. Falls back to plain paragraph
+    chunking (chunking.py) if a future complaints register doesn't use this
+    header pattern at all - same fallback shape as ingest_policies.py."""
     text = FOOTER_RE.sub("", text).strip()
     matches = list(LETTER_HEADER_RE.finditer(text))
+
+    if not matches:
+        return [{"complaint_ref": None, "client_id": None, "text": chunk} for chunk in paragraph_chunks(text)]
 
     letters = []
     for i, m in enumerate(matches):
@@ -60,12 +67,12 @@ def ingest(pdf_path: Path = PDF_PATH) -> dict:
     letters = split_letters(text)
 
     ids, docs, metadatas = [], [], []
-    for letter in letters:
-        ids.append(f"{pdf_path.stem}::{letter['complaint_ref']}")
+    for i, letter in enumerate(letters):
+        ids.append(f"{pdf_path.stem}::{letter['complaint_ref'] or i}")
         docs.append(letter["text"])
         metadatas.append({
             "source_file": pdf_path.name,
-            "complaint_ref": letter["complaint_ref"],
+            "complaint_ref": letter["complaint_ref"] or "",
             "client_id": letter["client_id"] or "",
         })
 
