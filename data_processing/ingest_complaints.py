@@ -20,8 +20,13 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
+# rerank.py lives at the repository root (sibling of data_processing/); make
+# sure it's importable regardless of how this script is invoked.
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from chunking import paragraph_chunks
 from vector_store import get_chroma_collection, replace_chunks_for
+from rerank import rerank
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 PDF_PATH = DATA_DIR / "client_complaint_letters.pdf"
@@ -83,7 +88,7 @@ def ingest(pdf_path: Path = PDF_PATH) -> dict:
 def query_complaints(question: str, n_results: int = 3, client_id: str | None = None) -> list[dict]:
     collection = get_chroma_collection(COLLECTION_NAME)
     where = {"client_id": client_id} if client_id else None
-    results = collection.query(query_texts=[question], n_results=n_results, where=where)
+    results = collection.query(query_texts=[question], n_results=max(n_results * 3, 6), where=where)
 
     out = []
     for doc, meta, dist in zip(results["documents"][0], results["metadatas"][0], results["distances"][0]):
@@ -93,7 +98,7 @@ def query_complaints(question: str, n_results: int = 3, client_id: str | None = 
             "similarity": round(1 - dist, 4),
             "text": doc,
         })
-    return out
+    return rerank(question, out, keep=n_results)
 
 
 def main() -> int:

@@ -24,9 +24,15 @@ Usage:
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
+# rerank.py lives at the repository root (sibling of data_processing/); make
+# sure it's importable regardless of how this script is invoked.
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from vector_store import get_chroma_collection, keyword_boosted_query, replace_chunks_for
+from rerank import rerank
 
 PROCESSED_DIR = Path(__file__).parent.parent / "data" / "processed"
 FUNDS_JSON = PROCESSED_DIR / "fund_factsheets_structured.json"
@@ -107,6 +113,10 @@ def query_fund_factsheets(question: str, n_results: int = 3, fund_name: str | No
     match on a specific number."""
     collection = get_chroma_collection(COLLECTION_NAME)
     where = {"fund_name": fund_name} if fund_name else None
+    # Keyword-boosted vector search into a wider pool, then cross-encoder
+    # re-rank down to n_results (see rerank.py). The numeric-token boost
+    # keeps exact figures like "USD 250,000" high; the cross-encoder
+    # re-orders by joint query-chunk relevance.
     candidates = keyword_boosted_query(collection, question, n_results=n_results, where=where)
 
     out = []
@@ -119,7 +129,7 @@ def query_fund_factsheets(question: str, n_results: int = 3, fund_name: str | No
             "similarity": c["similarity"],
             "text": c["doc"],
         })
-    return out
+    return rerank(question, out, keep=n_results)
 
 
 def main() -> int:

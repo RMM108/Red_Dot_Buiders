@@ -32,9 +32,19 @@ def _data_root(root: str | Path) -> Path:
     data_root = root / "data"
     if (data_root / "clients_portfolio.json").exists():
         return data_root
+    # When called from inside data_processing/, the corpus lives in the
+    # sibling data/ directory (root.parent / "data").
+    sibling_data = root.parent / "data"
+    if (sibling_data / "clients_portfolio.json").exists():
+        return sibling_data
     raise FileNotFoundError(
-        f"Could not find clients_portfolio.json under {root} or {data_root}"
+        f"Could not find clients_portfolio.json under {root}, {data_root}, or {sibling_data}"
     )
+
+
+# Repository root, resolved once at import. The persona tool wrappers use this
+# as the default data location; callers may override it per call via `root=`.
+ROOT = _data_root(Path(__file__).parent)
 
 
 def _canonical_risk_profile(value: str) -> str:
@@ -456,3 +466,123 @@ def generate_personas(root: str | Path) -> list[dict[str, Any]]:
     root = _data_root(root)
     data = json.loads((root / "clients_portfolio.json").read_text(encoding="utf-8"))
     return [lookup_client_persona(root, client["client_id"]) for client in data["clients"]]
+
+
+# --------------------------------------------------------------------------
+# Function-tool layer (mirrors the tool convention in agent.py)
+#
+# Each wrapper returns a JSON string so the result can be fed back into an
+# LLM tool-calling loop. When an EvidencePool is supplied, every result is
+# recorded as a citable evidence entry with a metadata-derived locator, so
+# persona output is never re-derived or re-written by the model.
+# --------------------------------------------------------------------------
+
+def _tool_result(pool, ref_id: str, locator: str, payload: dict) -> str:
+    """Record an evidence entry (if a pool is given) and return a JSON string."""
+    if pool is not None:
+        pool.add(ref_id, locator, json.dumps(payload))
+    return json.dumps({"ref_id": ref_id, "content": json.dumps(payload)})
+
+
+def tool_lookup_client_persona(pool, client_id: str, root: str | Path | None = None) -> str:
+    """Tool wrapper: return the stored persona for one exact client ID."""
+    try:
+        result = lookup_client_persona(root or ROOT, client_id)
+    except ValueError as exc:
+        return json.dumps({"error": str(exc)})
+    return _tool_result(pool, f"persona_{client_id}", f"clients_portfolio.json ({client_id})", result)
+
+
+def tool_generate_client_persona(
+    pool,
+    age: int,
+    marital_status: str,
+    net_worth_band: str,
+    aum_sgd: float,
+    source_of_wealth: str,
+    investment_objective: str,
+    top_k: int = 3,
+    root: str | Path | None = None,
+) -> str:
+    """Tool wrapper: match supplied characteristics to observed clients."""
+    characteristics = {
+        "age": age,
+        "marital_status": marital_status,
+        "net_worth_band": net_worth_band,
+        "aum_sgd": aum_sgd,
+        "source_of_wealth": source_of_wealth,
+        "investment_objective": investment_objective,
+    }
+    result = generate_client_persona(root or ROOT, characteristics, top_k=top_k)
+    return _tool_result(
+        pool,
+        "persona_generated",
+        "clients_portfolio.json (comparable-client match)",
+        result,
+    )
+
+
+def tool_generate_personas(pool, root: str | Path | None = None) -> str:
+    """Tool wrapper: return exact personas for every client record."""
+    result = generate_personas(root or ROOT)
+    return _tool_result(pool, "personas_all", "clients_portfolio.json (all clients)", {"personas": result})
+
+
+PERSONA_TOOLS = [
+    {
+        "type": "function",
+        "name": "lookup_client_persona",
+        "description": "Return the stored persona and portfolio for one exact client ID (e.g. 'CL002').",
+        "parameters": {
+            "type": "object",
+            "properties": {"client_id": {"type": "string"}},
+            "required": ["client_id"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "type": "function",
+        "name": "generate_client_persona",
+        "description": "Match supplied client characteristics to observed clients and surface comparable portfolio patterns. "
+                        "Does not make investment recommendations.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "age": {"type": "integer"},
+                "marital_status": {"type": "string"},
+                "net_worth_band": {"type": "string"},
+                "aum_sgd": {"type": "number"},
+                "source_of_wealth": {"type": "string"},
+                "investment_objective": {"type": "string"},
+                "top_k": {"type": "integer"},
+            },
+            "required": [
+                "age", "marital_status", "net_worth_band", "aum_sgd",
+                "source_of_wealth", "investment_objective",
+            ],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "type": "function",
+        "name": "generate_personas",
+        "description": "Return exact, non-inferred personas for every client record.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+    },
+]
+
+PERSONA_DISPATCH = {
+    "lookup_client_persona": tool_lookup_client_persona,
+    "generate_client_persona": tool_generate_client_persona,
+    "generate_personas": tool_generate_personas,
+}
+
+
+def run_persona_tool(name: str, args: dict, pool=None, root: str | Path | None = None) -> str:
+    """Invoke a persona tool by name, mirroring agent.py's DISPATCH routing."""
+    fn = PERSONA_DISPATCH[name]
+    return fn(pool, **args, root=root)
