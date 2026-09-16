@@ -20,10 +20,90 @@ load_dotenv()
 # by putting that directory on sys.path rather than importing as a package.
 sys.path.insert(0, str(Path(__file__).parent / "data_processing"))
 
-st.set_page_config(page_title="Wealth Management AI Copilot", page_icon="\U0001F4C8", layout="centered")
+st.set_page_config(page_title="Meridian Peak | Wealth Copilot", page_icon="\U0001F3DB️", layout="centered")
 
 DB_PATH = Path("data/processed/wealth_management.db")
 CHROMA_PATH = Path("chroma_db")
+
+CUSTOM_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ---- Brand header ---- */
+.brand-eyebrow {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #9A7B3F;
+    margin-bottom: 0.15rem;
+}
+.brand-title {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 2.1rem;
+    font-weight: 600;
+    color: #0F2A4A;
+    line-height: 1.15;
+    margin-bottom: 0.35rem;
+}
+.brand-rule {
+    height: 2px;
+    background: linear-gradient(90deg, #0F2A4A 0%, #9A7B3F 55%, rgba(154,123,63,0) 100%);
+    border: none;
+    margin: 0.6rem 0 1.1rem 0;
+}
+.brand-caption {
+    color: #4B5566;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+/* ---- Sidebar ---- */
+section[data-testid="stSidebar"] {
+    border-right: 1px solid #E4E8EF;
+}
+section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #5A6478;
+}
+
+/* ---- Chat area ---- */
+[data-testid="stChatMessage"] {
+    border-radius: 10px;
+    border: 1px solid #E9ECF2;
+    padding: 0.25rem 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+/* ---- Expanders (citations / tool calls) ---- */
+[data-testid="stExpander"] {
+    border: 1px solid #E4E8EF;
+    border-radius: 8px;
+}
+summary {
+    font-weight: 500;
+    color: #0F2A4A;
+}
+
+/* ---- Buttons ---- */
+.stButton > button {
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+footer, #MainMenu, [data-testid="stToolbar"] {visibility: hidden;}
+</style>
+"""
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 
 def system_ready() -> tuple[bool, list[str]]:
@@ -38,7 +118,7 @@ def system_ready() -> tuple[bool, list[str]]:
 
 
 with st.sidebar:
-    st.header("System status")
+    st.markdown("### System status")
     ready, problems = system_ready()
     if ready:
         st.success("Agent stores are ready.")
@@ -48,26 +128,35 @@ with st.sidebar:
             st.markdown(f"- {p}")
 
     st.divider()
-    max_turns = st.slider("Max tool-call turns", min_value=1, max_value=15, value=8)
+    st.markdown("### Display options")
     show_tool_calls = st.checkbox("Show tool calls", value=True)
     show_citations = st.checkbox("Show citations", value=True)
 
     st.divider()
-    if st.button("Clear conversation"):
+    if st.button("Clear conversation", use_container_width=True):
         st.session_state.messages = []
         st.session_state.evidence_pool = None
         st.rerun()
 
-st.title("Wealth Management AI Copilot")
-st.caption("Ask a client, product, or policy question. Answers are grounded in retrieved evidence, with citations and explicit abstention when evidence is insufficient.")
+st.markdown('<div class="brand-eyebrow">Meridian Peak Wealth Partners</div>', unsafe_allow_html=True)
+st.markdown('<div class="brand-title">Wealth Management AI Copilot</div>', unsafe_allow_html=True)
+st.markdown('<hr class="brand-rule" />', unsafe_allow_html=True)
+st.markdown(
+    '<div class="brand-caption">Ask a client, product, or policy question. Answers are grounded in '
+    "retrieved evidence, with citations and explicit abstention when evidence is insufficient.</div>",
+    unsafe_allow_html=True,
+)
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "evidence_pool" not in st.session_state:
     st.session_state.evidence_pool = None
 
+ASSISTANT_AVATAR = "\U0001F3DB️"
+
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
+    avatar = ASSISTANT_AVATAR if message["role"] == "assistant" else None
+    with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
         if message["role"] == "assistant":
             result = message.get("result")
@@ -93,7 +182,7 @@ if question:
     with st.chat_message("user"):
         st.markdown(question)
 
-    with st.chat_message("assistant"):
+    with st.chat_message("assistant", avatar=ASSISTANT_AVATAR):
         ready, problems = system_ready()
         if not ready:
             error_text = "Can't answer yet - " + " ".join(problems)
@@ -111,8 +200,7 @@ if question:
                     from agent import EvidencePool, run_agent
                     if st.session_state.evidence_pool is None:
                         st.session_state.evidence_pool = EvidencePool()
-                    result = run_agent(question, history=history, pool=st.session_state.evidence_pool,
-                                       max_turns=max_turns)
+                    result = run_agent(question, history=history, pool=st.session_state.evidence_pool)
                 except Exception as e:
                     result = {
                         "answer": f"Error while running the agent: {e}",
