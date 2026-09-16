@@ -22,6 +22,10 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
+# rerank.py lives at the repository root (sibling of data_processing/); make
+# sure it's importable regardless of how this script is invoked.
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from vector_store import get_chroma_collection, replace_chunks_for
 from rerank import rerank
 

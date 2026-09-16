@@ -32,8 +32,13 @@ def _data_root(root: str | Path) -> Path:
     data_root = root / "data"
     if (data_root / "clients_portfolio.json").exists():
         return data_root
+    # When called from inside data_processing/, the corpus lives in the
+    # sibling data/ directory (root.parent / "data").
+    sibling_data = root.parent / "data"
+    if (sibling_data / "clients_portfolio.json").exists():
+        return sibling_data
     raise FileNotFoundError(
-        f"Could not find clients_portfolio.json under {root} or {data_root}"
+        f"Could not find clients_portfolio.json under {root}, {data_root}, or {sibling_data}"
     )
 
 
