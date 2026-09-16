@@ -33,6 +33,17 @@ DB_PATH = Path("data/processed/wealth_management.db")
 CHROMA_PATH = Path("chroma_db")
 
 
+def ensure_stores() -> list[str]:
+    """Build the SQL + vector stores from committed source data if missing.
+
+    The stores are gitignored, so on a fresh Streamlit Cloud deploy they
+    don't exist yet. This rebuilds them from data/ (needs OPENAI_API_KEY for
+    embeddings, which is set above from Streamlit Secrets). Idempotent.
+    """
+    from bootstrap import ensure_stores as _ensure
+    return _ensure()
+
+
 def system_ready() -> tuple[bool, list[str]]:
     problems = []
     if not os.getenv("OPENAI_API_KEY"):
@@ -46,6 +57,19 @@ def system_ready() -> tuple[bool, list[str]]:
 
 with st.sidebar:
     st.header("System status")
+    # On a fresh deploy the gitignored stores don't exist yet; build them
+    # once per session from the committed source data (needs the API key).
+    if "stores_built" not in st.session_state:
+        if os.getenv("OPENAI_API_KEY"):
+            with st.spinner("Building stores from source data (first run only)..."):
+                try:
+                    steps = ensure_stores()
+                    if steps:
+                        st.caption("Built: " + ", ".join(steps))
+                except Exception as e:  # noqa: BLE001 - surface any build failure
+                    st.error(f"Store build failed: {e}")
+        st.session_state.stores_built = True
+
     ready, problems = system_ready()
     if ready:
         st.success("Agent stores are ready.")
