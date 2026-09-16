@@ -29,10 +29,11 @@ import sys
 from typing import Optional
 
 from dotenv import load_dotenv
-from openai import OpenAI
+from langsmith import traceable
 from pydantic import BaseModel
 
 import db
+from tracing import traced_openai_client
 from entity_crosswalk import resolve_client
 from ingest_ack_forms import query_ack_forms
 from ingest_call_notes import query_call_notes
@@ -263,6 +264,7 @@ def _resolve_client_id(client_id_or_name: str) -> dict:
     return resolve_client(client_id_or_name)
 
 
+@traceable(name="tool_query_client_db", run_type="tool")
 def tool_query_client_db(pool: EvidencePool, client_id_or_name: str) -> str:
     resolution = _resolve_client_id(client_id_or_name)
     if resolution.get("ambiguous"):
@@ -299,6 +301,7 @@ def tool_query_client_db(pool: EvidencePool, client_id_or_name: str) -> str:
     return json.dumps({"ref_id": ref_id, "content": format_evidence_text(text)})
 
 
+@traceable(name="tool_query_transactions", run_type="tool")
 def tool_query_transactions(
     pool: EvidencePool,
     client_id_or_name: str,
@@ -344,6 +347,7 @@ def tool_query_transactions(
     return json.dumps({"ref_id": ref_id, "content": format_evidence_text(text)})
 
 
+@traceable(name="tool_query_portfolio_exposure", run_type="tool")
 def tool_query_portfolio_exposure(
     pool: EvidencePool,
     product_type: str = "Complex Product",
@@ -398,6 +402,7 @@ def tool_query_portfolio_exposure(
     })
 
 
+@traceable(name="tool_get_fund_factsheet", run_type="tool")
 def tool_get_fund_factsheet(pool: EvidencePool, product_name: str) -> str:
     conn = db.get_connection()
     norm = normalize_product_name(product_name)
@@ -433,6 +438,7 @@ def tool_get_fund_factsheet(pool: EvidencePool, product_name: str) -> str:
     return json.dumps({"content": "\n\n".join(contents)})
 
 
+@traceable(name="tool_get_policy_section", run_type="tool")
 def tool_get_policy_section(pool: EvidencePool, query: str, document_code: Optional[str] = None) -> str:
     results = query_policy(query, n_results=3, document_code=document_code)
     if not results:
@@ -448,6 +454,7 @@ def tool_get_policy_section(pool: EvidencePool, query: str, document_code: Optio
     return json.dumps({"content": "\n\n".join(contents)})
 
 
+@traceable(name="tool_search_documents", run_type="tool")
 def tool_search_documents(pool: EvidencePool, query: str, doc_types: Optional[list[str]] = None,
                            client_id: Optional[str] = None) -> str:
     doc_types = doc_types or ["call_notes", "complaints", "correspondence", "ack_forms", "fund_factsheets"]
@@ -598,6 +605,7 @@ DISPATCH = {
 # Orchestrator loop
 # --------------------------------------------------------------------------
 
+@traceable(name="rewrite_query", run_type="chain")
 def rewrite_query(question: str, history: Optional[list[dict]] = None) -> str:
     """Resolve conversational references in `question` using prior turns, so the
     retrieval loop below always works from a standalone question. `history` is a
@@ -606,7 +614,7 @@ def rewrite_query(question: str, history: Optional[list[dict]] = None) -> str:
     if not history:
         return question
 
-    client = OpenAI()
+    client = traced_openai_client()
     convo = "\n".join(f"{h['role']}: {h['content']}" for h in history[-6:])
     resp = client.responses.create(
         model=REWRITE_MODEL,
@@ -621,6 +629,7 @@ def rewrite_query(question: str, history: Optional[list[dict]] = None) -> str:
 MAX_HISTORY_MESSAGES = 20  # ~10 exchanges of real conversation context fed to the main loop
 
 
+@traceable(name="run_agent", run_type="chain")
 def run_agent(question: str, history: Optional[list[dict]] = None, pool: Optional[EvidencePool] = None,
               max_turns: int = MAX_TOOL_TURNS, verbose: bool = False) -> dict:
     """`history` is the real prior conversation (list of {"role", "content"}, most
@@ -638,7 +647,7 @@ def run_agent(question: str, history: Optional[list[dict]] = None, pool: Optiona
     if verbose and rewritten_question != question:
         print(f"  rewritten query: {rewritten_question!r}")
 
-    client = OpenAI()
+    client = traced_openai_client()
     pool = pool if pool is not None else EvidencePool()
     input_list: list = [{"role": "system", "content": SYSTEM_PROMPT}]
     for h in (history or [])[-MAX_HISTORY_MESSAGES:]:

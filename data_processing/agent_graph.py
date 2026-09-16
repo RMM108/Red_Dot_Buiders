@@ -53,7 +53,7 @@ import json
 import sys
 from typing import Annotated, Any, Optional, TypedDict
 
-from openai import OpenAI
+from langsmith import traceable
 
 from agent import (
     DISPATCH,
@@ -67,6 +67,7 @@ from agent import (
 )
 from compliance_rules import check_client, format_findings, has_compliance_result
 from langgraph.graph import END, START, StateGraph
+from tracing import traced_openai_client
 
 MAX_CRITIC_RETRIES = 2
 
@@ -101,6 +102,13 @@ class GraphState(TypedDict):
 
 # --------------------------------------------------------------------------
 # Nodes
+#
+# None of these are individually @traceable: LangGraph's compiled graph already
+# participates in LangSmith's run tree on its own (each node becomes its own
+# traced span automatically once LANGSMITH_TRACING is set) - adding @traceable
+# here too would just duplicate that. What LangGraph does NOT trace on its own
+# is the actual OpenAI request/response inside node_agent (a raw SDK call, not
+# a LangChain chat model), so that's wrapped explicitly via traced_openai_client().
 # --------------------------------------------------------------------------
 
 def node_rewrite(state: GraphState) -> dict:
@@ -115,7 +123,7 @@ def node_rewrite(state: GraphState) -> dict:
 
 
 def node_agent(state: GraphState) -> dict:
-    client = OpenAI()
+    client = traced_openai_client()
     kwargs = {"temperature": 0} if SUPPORTS_TEMPERATURE else {}
     from agent import TOOLS  # local import: avoids a partial-init cycle with agent.py at module load time
 
@@ -256,6 +264,7 @@ def _get_graph():
 # Public entry point - same return shape as agent.run_agent
 # --------------------------------------------------------------------------
 
+@traceable(name="run_agent_graph", run_type="chain")
 def run_agent_graph(question: str, history: Optional[list[dict]] = None, pool: Optional[EvidencePool] = None,
                      verbose: bool = False) -> dict:
     pool = pool if pool is not None else EvidencePool()

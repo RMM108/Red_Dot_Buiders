@@ -51,6 +51,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+from langsmith import traceable
+
 import db
 from ingest_clients import normalize_product_name
 from vector_store import get_chroma_collection
@@ -168,6 +170,7 @@ def check_holding(client: dict, holding: dict, fund_sri: int) -> list[dict]:
     return findings
 
 
+@traceable(name="check_client", run_type="chain")
 def check_client(client_id: str) -> dict:
     """Run R1-R3 across every Complex Product holding for one client.
     overall_verdict is FAIL if any finding failed, else AMBIGUOUS if any

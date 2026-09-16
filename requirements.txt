@@ -32,6 +32,9 @@ openpyxl
 # --- Agentic AI ---
 langgraph
 
+# --- Observability ---
+langsmith
+
 # --- Qdrant (persona vector store) ---
 qdrant-client>=1.10
 
