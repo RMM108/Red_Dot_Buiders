@@ -25,6 +25,7 @@ from pypdf import PdfReader
 
 from chunking import paragraph_chunks
 from vector_store import get_chroma_collection, replace_chunks_for
+from rerank import rerank
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 PDF_PATH = DATA_DIR / "rm_call_notes_log.pdf"
@@ -90,7 +91,7 @@ def ingest(pdf_path: Path = PDF_PATH) -> dict:
 def query_call_notes(question: str, n_results: int = 3, client_id: str | None = None) -> list[dict]:
     collection = get_chroma_collection(COLLECTION_NAME)
     where = {"client_id": client_id} if client_id else None
-    results = collection.query(query_texts=[question], n_results=n_results, where=where)
+    results = collection.query(query_texts=[question], n_results=max(n_results * 3, 6), where=where)
 
     out = []
     for doc, meta, dist in zip(results["documents"][0], results["metadatas"][0], results["distances"][0]):
@@ -101,7 +102,7 @@ def query_call_notes(question: str, n_results: int = 3, client_id: str | None = 
             "similarity": round(1 - dist, 4),
             "text": doc,
         })
-    return out
+    return rerank(question, out, keep=n_results)
 
 
 def main() -> int:

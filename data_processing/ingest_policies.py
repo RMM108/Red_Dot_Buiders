@@ -35,7 +35,12 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
+# rerank.py lives at the repository root (sibling of data_processing/); make
+# sure it's importable regardless of how this script is invoked.
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from vector_store import CHROMA_DIR, get_chroma_collection, keyword_boosted_query, replace_chunks_for
+from rerank import rerank
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 COLLECTION_NAME = "policies"
@@ -207,7 +212,10 @@ def query_policy(question: str, n_results: int = 3, document_code: str | None = 
             "similarity": c["similarity"],
             "text": c["doc"],
         })
-    return out
+    # Cross-encoder re-rank within the keyword-boosted candidate set. Chunks
+    # containing the exact numeric token stay high (the cross-encoder scores
+    # them jointly against the query), while the overall ordering improves.
+    return rerank(question, out, keep=n_results)
 
 
 # --------------------------------------------------------------------------
