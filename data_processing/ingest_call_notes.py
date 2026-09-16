@@ -27,7 +27,7 @@ from pypdf import PdfReader
 # sure it's importable regardless of how this script is invoked.
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from chunking import paragraph_chunks
+from chunking import extract_page_offsets, page_range_for_span, paragraph_chunks
 from vector_store import get_chroma_collection, replace_chunks_for
 from rerank import rerank
 
@@ -45,16 +45,18 @@ def extract_text(pdf_path: Path) -> str:
     return "\n".join(p.extract_text() or "" for p in reader.pages)
 
 
-def split_entries(text: str) -> list[dict]:
+def split_entries(text: str, page_offsets: list[int] | None = None) -> list[dict]:
     """One chunk per "CLxxx - Name" entry. Falls back to plain paragraph
     chunking (chunking.py) if a future call-notes log doesn't use this
     header pattern at all, so it still gets ingested rather than skipped -
-    same fallback shape as ingest_policies.py's section splitting."""
+    same fallback shape as ingest_policies.py's section splitting.
+    `page_offsets` (from chunking.extract_page_offsets) is optional so this
+    stays callable with just `text`, as existing tests do."""
     text = FOOTER_RE.sub("", text).strip()
     matches = list(ENTRY_HEADER_RE.finditer(text))
 
     if not matches:
-        return [{"client_id": None, "date": None, "has_flag": "FLAG:" in chunk, "text": chunk}
+        return [{"client_id": None, "date": None, "has_flag": "FLAG:" in chunk, "page": None, "text": chunk}
                 for chunk in paragraph_chunks(text)]
 
     entries = []
@@ -67,6 +69,7 @@ def split_entries(text: str) -> list[dict]:
             "client_id": m.group(1),
             "date": date_m.group(1) if date_m else None,
             "has_flag": "FLAG:" in entry_text,
+            "page": page_range_for_span(page_offsets, start, end) if page_offsets else None,
             "text": entry_text,
         })
     return entries
@@ -75,7 +78,8 @@ def split_entries(text: str) -> list[dict]:
 def ingest(pdf_path: Path = PDF_PATH) -> dict:
     collection = get_chroma_collection(COLLECTION_NAME)
     text = extract_text(pdf_path)
-    entries = split_entries(text)
+    page_offsets = extract_page_offsets(pdf_path)
+    entries = split_entries(text, page_offsets)
 
     ids, docs, metadatas = [], [], []
     for i, e in enumerate(entries):
@@ -86,6 +90,7 @@ def ingest(pdf_path: Path = PDF_PATH) -> dict:
             "client_id": e["client_id"] or "",
             "date": e["date"] or "",
             "has_flag": e["has_flag"],
+            "page": e["page"] or "",
         })
 
     n_replaced = replace_chunks_for(collection, "source_file", pdf_path.name, ids, docs, metadatas)
@@ -103,6 +108,7 @@ def query_call_notes(question: str, n_results: int = 3, client_id: str | None = 
             "client_id": meta["client_id"],
             "date": meta["date"],
             "has_flag": meta["has_flag"],
+            "page": meta.get("page") or None,
             "similarity": round(1 - dist, 4),
             "text": doc,
         })

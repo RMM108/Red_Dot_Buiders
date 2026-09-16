@@ -24,7 +24,7 @@ from pypdf import PdfReader
 # sure it's importable regardless of how this script is invoked.
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from chunking import paragraph_chunks
+from chunking import extract_page_offsets, page_range_for_span, paragraph_chunks
 from vector_store import get_chroma_collection, replace_chunks_for
 from rerank import rerank
 
@@ -42,15 +42,18 @@ def extract_text(pdf_path: Path) -> str:
     return "\n".join(p.extract_text() or "" for p in reader.pages)
 
 
-def split_letters(text: str) -> list[dict]:
+def split_letters(text: str, page_offsets: list[int] | None = None) -> list[dict]:
     """One chunk per "Complaint Letter" entry. Falls back to plain paragraph
     chunking (chunking.py) if a future complaints register doesn't use this
-    header pattern at all - same fallback shape as ingest_policies.py."""
+    header pattern at all - same fallback shape as ingest_policies.py.
+    `page_offsets` (from chunking.extract_page_offsets) is optional so this
+    stays callable with just `text`, as existing tests do."""
     text = FOOTER_RE.sub("", text).strip()
     matches = list(LETTER_HEADER_RE.finditer(text))
 
     if not matches:
-        return [{"complaint_ref": None, "client_id": None, "text": chunk} for chunk in paragraph_chunks(text)]
+        return [{"complaint_ref": None, "client_id": None, "page": None, "text": chunk}
+                for chunk in paragraph_chunks(text)]
 
     letters = []
     for i, m in enumerate(matches):
@@ -61,6 +64,7 @@ def split_letters(text: str) -> list[dict]:
         letters.append({
             "complaint_ref": m.group(1),
             "client_id": client_m.group(1) if client_m else None,
+            "page": page_range_for_span(page_offsets, start, end) if page_offsets else None,
             "text": letter_text,
         })
     return letters
@@ -69,7 +73,8 @@ def split_letters(text: str) -> list[dict]:
 def ingest(pdf_path: Path = PDF_PATH) -> dict:
     collection = get_chroma_collection(COLLECTION_NAME)
     text = extract_text(pdf_path)
-    letters = split_letters(text)
+    page_offsets = extract_page_offsets(pdf_path)
+    letters = split_letters(text, page_offsets)
 
     ids, docs, metadatas = [], [], []
     for i, letter in enumerate(letters):
@@ -79,6 +84,7 @@ def ingest(pdf_path: Path = PDF_PATH) -> dict:
             "source_file": pdf_path.name,
             "complaint_ref": letter["complaint_ref"] or "",
             "client_id": letter["client_id"] or "",
+            "page": letter["page"] or "",
         })
 
     n_replaced = replace_chunks_for(collection, "source_file", pdf_path.name, ids, docs, metadatas)
@@ -95,6 +101,7 @@ def query_complaints(question: str, n_results: int = 3, client_id: str | None = 
         out.append({
             "complaint_ref": meta["complaint_ref"],
             "client_id": meta["client_id"],
+            "page": meta.get("page") or None,
             "similarity": round(1 - dist, 4),
             "text": doc,
         })

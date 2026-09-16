@@ -39,6 +39,7 @@ from pypdf import PdfReader
 # sure it's importable regardless of how this script is invoked.
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from chunking import extract_page_offsets, page_range_for_span
 from vector_store import CHROMA_DIR, get_chroma_collection, keyword_boosted_query, replace_chunks_for
 from rerank import rerank
 
@@ -94,14 +95,17 @@ def parse_header(text: str) -> dict:
     }
 
 
-def split_into_sections(text: str) -> list[dict]:
+def split_into_sections(text: str, page_offsets: list[int] | None = None) -> list[dict]:
     """One chunk per numbered top-level section. Falls back to paragraph
-    chunking if the document doesn't have >= 2 recognizable section headers."""
+    chunking if the document doesn't have >= 2 recognizable section headers.
+    `page_offsets` (from chunking.extract_page_offsets) is optional so this
+    stays callable with just `text`, as existing tests do; a chunk's "page"
+    is None without it."""
     text = FOOTER_RE.sub("", text).strip()
     matches = list(SECTION_HEADER_RE.finditer(text))
 
     if len(matches) < 2:
-        return _paragraph_chunks(text)
+        return _paragraph_chunks(text, page_offsets)
 
     chunks = []
     for i, m in enumerate(matches):
@@ -112,12 +116,13 @@ def split_into_sections(text: str) -> list[dict]:
             "chunk_type": "section",
             "section_number": m.group(1),
             "section_title": m.group(2).strip(),
+            "page": page_range_for_span(page_offsets, start, end) if page_offsets else None,
             "text": section_text,
         })
     return chunks
 
 
-def _paragraph_chunks(text: str) -> list[dict]:
+def _paragraph_chunks(text: str, page_offsets: list[int] | None = None) -> list[dict]:
     chunks = []
     start = 0
     while start < len(text):
@@ -126,6 +131,7 @@ def _paragraph_chunks(text: str) -> list[dict]:
             "chunk_type": "paragraph",
             "section_number": None,
             "section_title": None,
+            "page": page_range_for_span(page_offsets, start, end) if page_offsets else None,
             "text": text[start:end].strip(),
         })
         if end == len(text):
@@ -147,8 +153,9 @@ def ingest_policy(pdf_path: Path, collection=None) -> dict:
     collection = collection or get_collection()
 
     text = extract_text(pdf_path)
+    page_offsets = extract_page_offsets(pdf_path)
     header = parse_header(text)
-    chunks = split_into_sections(text)
+    chunks = split_into_sections(text, page_offsets)
 
     doc_code = header["document_code"] or pdf_path.stem
 
@@ -167,6 +174,7 @@ def ingest_policy(pdf_path: Path, collection=None) -> dict:
             "chunk_type": chunk["chunk_type"],
             "section_number": chunk["section_number"] or "",
             "section_title": chunk["section_title"] or "",
+            "page": chunk["page"] or "",
         })
 
     # replace any existing chunks for this document_code so a revised
@@ -209,6 +217,7 @@ def query_policy(question: str, n_results: int = 3, document_code: str | None = 
             "policy_name": meta["policy_name"],
             "document_code": meta["document_code"],
             "section": f"Section {meta['section_number']}: {meta['section_title']}" if meta["section_number"] else "(paragraph chunk)",
+            "page": meta.get("page") or None,
             "similarity": c["similarity"],
             "text": c["doc"],
         })
