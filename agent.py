@@ -42,8 +42,20 @@ from ingest_policies import query_policy
 
 load_dotenv()
 
-MODEL = "gpt-4o-mini"
+MODEL = "gpt-5.5"
 MAX_TOOL_TURNS = 8
+# Reasoning-tier models (gpt-5.x, o-series) reject an explicit temperature.
+SUPPORTS_TEMPERATURE = not (MODEL.startswith("gpt-5") or MODEL.startswith("o1")
+                             or MODEL.startswith("o3") or MODEL.startswith("o4"))
+
+REWRITE_MODEL = "gpt-5.4-mini"
+
+REWRITE_SYSTEM_PROMPT = """Rewrite the user's latest question into a standalone question that makes \
+sense with no prior context. Resolve pronouns and references (e.g. "him", "her", "that client", "the \
+same fund", "it") into the explicit name, client ID, or product they refer to, using the conversation \
+history. Do not answer the question. Do not change its meaning or add information the conversation \
+doesn't support. If the question is already standalone, return it unchanged. Return ONLY the rewritten \
+question, with no explanation or quotation marks."""
 
 SYSTEM_PROMPT = """You are a compliance-aware AI copilot for relationship managers and compliance \
 staff at a wealth management firm. Answer client-specific questions using ONLY the tools provided - \
@@ -370,17 +382,43 @@ DISPATCH = {
 # Orchestrator loop
 # --------------------------------------------------------------------------
 
-def run_agent(question: str, max_turns: int = MAX_TOOL_TURNS, verbose: bool = False) -> dict:
+def rewrite_query(question: str, history: Optional[list[dict]] = None) -> str:
+    """Resolve conversational references in `question` using prior turns, so the
+    retrieval loop below always works from a standalone question. `history` is a
+    list of {"role": "user"|"assistant", "content": str} from earlier turns in
+    the same conversation (most recent last); pass None/[] for a fresh question."""
+    if not history:
+        return question
+
+    client = OpenAI()
+    convo = "\n".join(f"{h['role']}: {h['content']}" for h in history[-6:])
+    resp = client.responses.create(
+        model=REWRITE_MODEL,
+        input=[
+            {"role": "system", "content": REWRITE_SYSTEM_PROMPT},
+            {"role": "user", "content": f"Conversation so far:\n{convo}\n\nLatest question: {question}"},
+        ],
+    )
+    return resp.output_text.strip() or question
+
+
+def run_agent(question: str, history: Optional[list[dict]] = None, max_turns: int = MAX_TOOL_TURNS,
+              verbose: bool = False) -> dict:
+    rewritten_question = rewrite_query(question, history)
+    if verbose and rewritten_question != question:
+        print(f"  rewritten query: {rewritten_question!r}")
+
     client = OpenAI()
     pool = EvidencePool()
     input_list: list = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": question},
+        {"role": "user", "content": rewritten_question},
     ]
     tool_call_log = []
 
     for _ in range(max_turns):
-        resp = client.responses.parse(model=MODEL, input=input_list, tools=TOOLS, text_format=AgentAnswer, temperature=0)
+        kwargs = {"temperature": 0} if SUPPORTS_TEMPERATURE else {}
+        resp = client.responses.parse(model=MODEL, input=input_list, tools=TOOLS, text_format=AgentAnswer, **kwargs)
         input_list += resp.output
 
         function_calls = [o for o in resp.output if o.type == "function_call"]
@@ -403,6 +441,7 @@ def run_agent(question: str, max_turns: int = MAX_TOOL_TURNS, verbose: bool = Fa
             "citations": [], "abstained": True,
             "abstention_reason": f"exceeded {max_turns} tool-call turns",
             "tool_calls": tool_call_log, "n_evidence_retrieved": len(pool.entries),
+            "original_question": question, "rewritten_question": rewritten_question,
         }
 
     resolved_citations = []
@@ -420,10 +459,14 @@ def run_agent(question: str, max_turns: int = MAX_TOOL_TURNS, verbose: bool = Fa
         "abstention_reason": parsed.abstention_reason,
         "tool_calls": tool_call_log,
         "n_evidence_retrieved": len(pool.entries),
+        "original_question": question,
+        "rewritten_question": rewritten_question,
     }
 
 
 def print_result(result: dict) -> None:
+    if result.get("rewritten_question") and result["rewritten_question"] != result.get("original_question"):
+        print(f"\nInterpreted as: {result['rewritten_question']}")
     print(f"\nAnswer: {result['answer']}")
     print(f"\nAbstained: {result['abstained']}" + (f" ({result['abstention_reason']})" if result["abstention_reason"] else ""))
     print(f"\nCitations ({len(result['citations'])}):")
