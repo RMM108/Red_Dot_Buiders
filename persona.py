@@ -93,13 +93,8 @@ def _current_profile_overlay(
         for row in transactions
     )
 
-    recorded_score = float(client["risk_score_1_to_10"])
-    current_score = min(recorded_score, 3.0) if de_risk_signal else recorded_score
-    current_profile = (
-        "Conservative"
-        if de_risk_signal and current_score <= 3
-        else _canonical_risk_profile(client["risk_profile"])
-    )
+    recorded_score = client["risk_score_1_to_10"]
+    recorded_profile = _canonical_risk_profile(client["risk_profile"])
     risk_signals: list[str] = []
     if de_risk_signal:
         risk_signals.append(
@@ -133,23 +128,12 @@ def _current_profile_overlay(
             except (TypeError, ValueError):
                 pass
 
-    viable_product_categories = (
-        [
-            "Cash and money-market funds",
-            "Government and investment-grade fixed income",
-            "Balanced income and growth funds",
-        ]
-        if current_score <= 3
-        else ["Diversified growth funds", "Equity funds", "Fixed income for diversification"]
-    )
     return {
-        "recorded_risk_profile": _canonical_risk_profile(client["risk_profile"]),
-        "recorded_risk_score": client["risk_score_1_to_10"],
-        "current_risk_profile": current_profile,
-        "current_risk_score": int(current_score)
-        if current_score.is_integer()
-        else round(current_score, 2),
-        "risk_profile_basis": "client correspondence and transaction activity overlay",
+        "recorded_risk_profile": recorded_profile,
+        "recorded_risk_score": recorded_score,
+        "current_risk_profile": recorded_profile,
+        "current_risk_score": recorded_score,
+        "risk_profile_basis": "clients_portfolio.json/clients_portfolio.csv recorded values; activity is a review signal only",
         "risk_signals": risk_signals,
         "current_objective": (
             "De-risk toward retirement and reduce growth/illiquid exposure."
@@ -171,11 +155,83 @@ def _current_profile_overlay(
             }
             for product, values in product_activity.items()
         },
-        "viable_product_categories": viable_product_categories,
         "product_fit_status": (
-            "Provisional category-level fit only; fund factsheets and product suitability rules "
-            "are evaluated by the agentic RAG pipeline, not persona construction."
+            "Observed category-level context only; fund factsheets and product suitability rules "
+            "must be retrieved by the agentic RAG pipeline before any advisor conclusion."
         ),
+    }
+
+
+def _advisor_attention_items(
+    client: dict[str, Any], overlay: dict[str, Any]
+) -> list[dict[str, str]]:
+    """Turn source-backed signals into RM review prompts, not advice."""
+
+    items: list[dict[str, str]] = []
+    suitability_flag = client.get("suitability_flag") or ""
+    if suitability_flag and not suitability_flag.casefold().startswith("no "):
+        items.append({
+            "priority": "high",
+            "type": "suitability_review",
+            "message": suitability_flag,
+            "source": "clients_portfolio.json",
+        })
+    if overlay["pending_actions"]:
+        items.append({
+            "priority": "high",
+            "type": "pending_action",
+            "message": "Confirm whether pending portfolio or remittance actions were executed before advising on current holdings.",
+            "source": "transactions.csv",
+        })
+    if client.get("pep_status", "").casefold() not in {"", "not a pep"}:
+        items.append({
+            "priority": "high",
+            "type": "kyc_monitoring",
+            "message": "Review the recorded PEP-adjacent/monitoring status and latest KYC evidence before client servicing.",
+            "source": "clients_portfolio.json",
+        })
+    if overlay["risk_signals"]:
+        items.append({
+            "priority": "medium",
+            "type": "profile_change",
+            "message": "Reconfirm the current risk profile and objective against the recorded correspondence and activity overlay.",
+            "source": "client_correspondence.json; transactions.csv",
+        })
+    if not items:
+        items.append({
+            "priority": "low",
+            "type": "routine_review",
+            "message": "No active exception was detected in the supplied client record; continue ordinary suitability and KYC review.",
+            "source": "clients_portfolio.json",
+        })
+    return items
+
+
+def _advisor_view(client: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "client_snapshot": {
+            "client_id": client["client_id"],
+            "name": client["name"],
+            "recorded_risk_profile": overlay["recorded_risk_profile"],
+            "recorded_risk_score": overlay["recorded_risk_score"],
+            "current_risk_profile": overlay["current_risk_profile"],
+            "current_risk_score": overlay["current_risk_score"],
+            "investor_status": client.get("investor_status"),
+            "investment_objective": client.get("investment_objective"),
+            "aum_sgd": client.get("aum_sgd"),
+        },
+        "attention_items": _advisor_attention_items(client, overlay),
+        "next_steps": [
+            "Use the agentic RAG tools to retrieve the relevant policy, factsheet, and client documents before making a suitability determination.",
+            "Treat pending transactions and correspondence signals as review prompts, not executed changes to the portfolio.",
+            "Do not infer a product recommendation from comparable-client portfolio patterns.",
+        ],
+        "evidence_sources": [
+            "clients_portfolio.json",
+            "transactions.csv",
+            "client_correspondence.json",
+        ],
+        "scope_note": "This is an advisor review brief, not investment, legal, or compliance advice.",
     }
 
 
@@ -259,34 +315,29 @@ def generate_client_persona(
 
     product_scores: defaultdict[str, float] = defaultdict(float)
     asset_class_scores: defaultdict[str, float] = defaultdict(float)
-    risk_scores: defaultdict[str, float] = defaultdict(float)
-    current_risk_scores: defaultdict[str, float] = defaultdict(float)
     investor_status_scores: defaultdict[str, float] = defaultdict(float)
     pep_status_scores: defaultdict[str, float] = defaultdict(float)
     suitability_flags: list[dict[str, Any]] = []
     current_profile_signals: list[dict[str, Any]] = []
-    weighted_risk_total = weighted_current_risk_total = 0.0
     total_match_score = sum(score for score, *_ in matches)
     if total_match_score == 0:
         return {
-            "input_characteristics": normalized, "expected_risk_profile": None,
-            "expected_risk_score": None, "current_expected_risk_profile": None,
-            "current_expected_risk_score": None, "current_profile_signals": [],
-            "risk_profile_distribution": [], "investor_status_distribution": [],
+            "input_characteristics": normalized, "current_profile_signals": [],
+            "matched_client_risk_profiles": [], "investor_status_distribution": [],
             "pep_status_distribution": [], "suitability_flags": [],
             "favoured_portfolios": [], "favoured_asset_classes": [], "matched_clients": [],
+            "observed_portfolio_patterns": [],
+            "advisor_use": {
+                "scope_note": "No comparable client records were found; do not infer a client recommendation."
+            },
             "limitations": ["No comparable client records were found for the supplied characteristics."],
         }
 
     for match_score, client, _, _ in matches:
-        risk_profile = _canonical_risk_profile(client["risk_profile"])
-        risk_scores[risk_profile] += match_score
         overlay = _current_profile_overlay(
             client, _client_transactions(root, client["client_id"]),
             _client_correspondence(root, client["client_id"]),
         )
-        current_risk_scores[overlay["current_risk_profile"]] += match_score
-        weighted_current_risk_total += match_score * overlay["current_risk_score"]
         current_profile_signals.append({
             "client_id": client["client_id"], "current_profile": overlay["current_risk_profile"],
             "risk_signals": overlay["risk_signals"], "pending_actions": overlay["pending_actions"],
@@ -297,7 +348,6 @@ def generate_client_persona(
             "client_id": client["client_id"], "flag": client["suitability_flag"],
             "notes": client.get("notes"),
         })
-        weighted_risk_total += match_score * client["risk_score_1_to_10"]
         for holding in client["portfolio_holdings"]:
             allocation = float(holding["allocation_pct"])
             product_scores[holding["product_name"]] += match_score * allocation
@@ -309,7 +359,6 @@ def generate_client_persona(
             for name, value in sorted(scores.items(), key=lambda item: (-item[1], item[0]))
         ]
 
-    dominant_risk = max(risk_scores, key=risk_scores.get)
     unavailable_fields = [
         field for field in PERSONA_FIELDS
         if normalized.get(field) not in (None, "")
@@ -317,21 +366,21 @@ def generate_client_persona(
     ]
     limitations = [
         "Portfolio preferences are inferred from similar observed clients, not stated recommendations.",
-        "Risk is grounded in the matched clients' recorded risk profiles.",
+        "Risk appetite is not calculated here; matched clients' recorded risk fields are provided for advisor verification only.",
     ]
     if "aum_sgd" in normalized and "aum_sgd" in unavailable_fields:
         limitations.append("AUM in SGD was supplied but is absent from the client records, so it was excluded from matching.")
 
     return {
         "input_characteristics": normalized,
-        "expected_risk_profile": dominant_risk,
-        "expected_risk_score": round(weighted_risk_total / total_match_score, 2),
-        "current_expected_risk_profile": max(current_risk_scores, key=current_risk_scores.get),
-        "current_expected_risk_score": round(weighted_current_risk_total / total_match_score, 2),
         "current_profile_signals": current_profile_signals,
-        "risk_profile_distribution": [
-            {"profile": profile, "match_weight": round(weight / total_match_score, 3)}
-            for profile, weight in sorted(risk_scores.items(), key=lambda item: (-item[1], item[0]))
+        "matched_client_risk_profiles": [
+            {
+                "client_id": client["client_id"],
+                "recorded_profile": _canonical_risk_profile(client["risk_profile"]),
+                "recorded_score": client["risk_score_1_to_10"],
+            }
+            for _, client, _, _ in matches
         ],
         "investor_status_distribution": [
             {"status": status, "match_weight": round(weight / total_match_score, 3)}
@@ -344,12 +393,21 @@ def generate_client_persona(
         "suitability_flags": suitability_flags,
         "favoured_portfolios": ranked_allocations(product_scores)[:top_k],
         "favoured_asset_classes": ranked_allocations(asset_class_scores)[:top_k],
+        "observed_portfolio_patterns": ranked_allocations(product_scores)[:top_k],
         "matched_clients": [
             {"client_id": client["client_id"], "name": client["name"],
              "match_score": round(score, 3), "matching_characteristics": reasons}
             for score, client, reasons, _ in matches
         ],
         "limitations": limitations,
+        "advisor_use": {
+            "purpose": "Use comparable clients to generate discussion context and questions for review, not product recommendations.",
+            "review_before_action": [
+                "Confirm the supplied characteristics and the client's current recorded profile.",
+                "Retrieve current policy and product evidence before discussing suitability.",
+                "Check for missing documentation, pending actions, and conflicting correspondence.",
+            ],
+        },
     }
 
 
@@ -372,6 +430,7 @@ def lookup_client_persona(root: str | Path, client_id: str) -> dict[str, Any]:
         "characteristics": {field: client.get(field) for field in PERSONA_FIELDS if client.get(field) is not None},
         "expected_risk_profile": _canonical_risk_profile(client["risk_profile"]),
         "expected_risk_score": client["risk_score_1_to_10"], "current_profile": overlay,
+        "advisor_view": _advisor_view(client, overlay),
         "favoured_portfolios": [
             {"name": holding["product_name"], "asset_class": holding["asset_class"],
              "allocation_pct": holding["allocation_pct"], "value_sgd": holding["value_sgd"],

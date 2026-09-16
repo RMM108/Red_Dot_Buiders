@@ -32,9 +32,9 @@ class CopilotTests(unittest.TestCase):
             top_k=3,
         )
 
-        self.assertEqual(result["expected_risk_profile"], "Conservative")
-        self.assertEqual(result["current_expected_risk_profile"], "Conservative")
         self.assertEqual(result["matched_clients"][0]["client_id"], "CL002")
+        self.assertEqual(result["matched_client_risk_profiles"][0]["recorded_profile"], "Conservative")
+        self.assertNotIn("expected_risk_profile", result)
         self.assertEqual(
             result["favoured_portfolios"][0]["name"],
             "APAC Stable Income Money Market Fund",
@@ -54,10 +54,9 @@ class CopilotTests(unittest.TestCase):
             top_k=3,
         )
 
-        self.assertEqual(result["expected_risk_profile"], "Aggressive Growth")
-        self.assertEqual(result["current_expected_risk_profile"], "Aggressive Growth")
-        self.assertEqual(result["expected_risk_score"], 9.0)
         self.assertEqual(result["matched_clients"][0]["client_id"], "CL001")
+        self.assertEqual(result["matched_client_risk_profiles"][0]["recorded_score"], 9)
+        self.assertNotIn("expected_risk_score", result)
         self.assertEqual(
             result["favoured_portfolios"][0]["name"],
             "Pacific Growth Equity Fund",
@@ -76,13 +75,29 @@ class CopilotTests(unittest.TestCase):
             result["favoured_portfolios"][0]["name"],
             "Pacific Growth Equity Fund",
         )
+        self.assertIn("advisor_view", result)
+        self.assertIn(
+            "Do not infer a product recommendation",
+            " ".join(result["advisor_view"]["next_steps"]),
+        )
 
-    def test_current_profile_applies_retirement_de_risking_overlay(self):
+    def test_advisor_view_surfaces_client_specific_review_items(self):
+        cl002 = lookup_client_persona(ROOT, "CL002")["advisor_view"]
+        cl013 = lookup_client_persona(ROOT, "CL013")["advisor_view"]
+        cl014 = lookup_client_persona(ROOT, "CL014")["advisor_view"]
+
+        self.assertTrue(any(item["type"] == "suitability_review" for item in cl002["attention_items"]))
+        self.assertTrue(any(item["type"] == "pending_action" for item in cl013["attention_items"]))
+        self.assertTrue(any(item["type"] == "kyc_monitoring" for item in cl014["attention_items"]))
+        self.assertIn("not investment", cl002["scope_note"])
+
+    def test_current_profile_preserves_recorded_risk_and_surfaces_de_risk_signal(self):
         result = lookup_client_persona(ROOT, "CL013")
 
         current = result["current_profile"]
         self.assertEqual(current["current_risk_profile"], "Conservative")
         self.assertEqual(current["current_risk_score"], 3)
+        self.assertIn("recorded values", current["risk_profile_basis"])
         self.assertTrue(current["pending_actions"])
         self.assertIn("retirement", current["current_objective"].casefold())
 

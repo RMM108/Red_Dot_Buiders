@@ -54,13 +54,13 @@ can score retrieval and reasoning quality objectively.
 ### Evaluation
 | File | Contents |
 |---|---|
-| `golden_qa_dataset.json` | 5 golden question/answer pairs spanning simple lookup, suitability breach, numeric/temporal reasoning, ambiguous policy interpretation, and multi-hop timeline reconstruction, each with expected answer, required source documents, and grading notes |
+| `golden_dataset_for_RAG_evaluation.xlsx` | 5 golden question/answer pairs spanning simple lookup, suitability breach, numeric/temporal reasoning, ambiguous policy interpretation, and multi-hop timeline reconstruction, each with expected answer, required source documents, and grading notes |
 
 ## Suggested use in your RAG system
 
 1. **Ingest** all PDFs and the `client_correspondence.json` emails as your document corpus.
 2. **Ingest** `clients_portfolio.json` / `transactions.csv` as metadata, SQL rows, or per-record text chunks.
-3. **Evaluate** against `golden_qa_dataset.json` to score both retrieval (right source documents) and generation (correct, appropriately calibrated answer).
+3. **Evaluate** against `golden_dataset_for_RAG_evaluation.xlsx` to score both retrieval (right source documents) and generation (correct, appropriately calibrated answer).
 4. **Test retrieval + reasoning** across documents, e.g.:
    - *"Is the APEX Autocallable Note suitable for a Conservative client, and does Robert Chua have a signed risk acknowledgement?"* → needs the suitability policy + fact sheet + the (missing) acknowledgement form + CL002's record.
    - *"Walk me through what happened with Carlos Bautista's DCI trade."* → needs the call note, transaction ledger, internal compliance email, and client record to reconstruct the timeline.
