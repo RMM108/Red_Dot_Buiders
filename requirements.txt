@@ -1,0 +1,38 @@
+# --- Core data / ML ---
+numpy
+pandas
+scikit-learn
+scipy
+tensorflow
+matplotlib
+seaborn
+plotly
+
+# --- App / demo UI ---
+streamlit
+
+# --- LLM providers ---
+openai
+anthropic
+
+# --- RAG / vector search ---
+langchain
+langchain-community
+langchain-openai
+langchain-anthropic
+llama-index
+chromadb
+faiss-cpu
+sentence-transformers
+tiktoken
+pypdf
+pymupdf
+openpyxl
+
+# --- Agentic AI ---
+langgraph
+
+# --- Utilities ---
+python-dotenv
+jupyter
+ipykernel

@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.ipynb_checkpoints/
+.streamlit/
+*.chroma/
+chroma_db/
+*.db
+data/processed/golden_dataset_for_RAG_evaluation_completed.xlsx

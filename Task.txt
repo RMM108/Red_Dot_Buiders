@@ -1,0 +1,3 @@
+Use Case:
+Build an AI copilot that retrieves and synthesizes relevant supplied content to answer client-specific questions with source citations and explicit abstention when evidence is insufficient
+

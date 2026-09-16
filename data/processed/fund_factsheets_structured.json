@@ -1,0 +1,927 @@
+[
+  {
+    "fund_name": "Balanced Income & Growth Fund",
+    "product_type": "Balanced Growth & Income",
+    "document_subtitle": "Fund Fact Sheet",
+    "summary_risk_indicator": 3,
+    "summary_risk_indicator_label": "MEDIUM RISK",
+    "as_of_date": "31 August 2026",
+    "document_code": "FS-MA-SG-012",
+    "classification": "Internal Use Only",
+    "fund_objective_or_product_description": "The Fund aims to provide a combination of income and capital growth over the medium to long term by investing in a diversified multi-asset portfolio of global equities, bonds, and listed real estate securities, dynamically rebalanced by the Fund Manager.",
+    "minimum_investment": "USD 5,000 (retail); USD 500 subsequent",
+    "base_currency": "USD",
+    "key_facts": [
+      {
+        "label": "Fund Manager",
+        "value": "Meridian Peak Asset Management (Singapore) Pte. Ltd."
+      },
+      {
+        "label": "Domicile",
+        "value": "Singapore"
+      },
+      {
+        "label": "Base Currency",
+        "value": "USD (SGD share class available)"
+      },
+      {
+        "label": "Fund Inception",
+        "value": "19 January 2014"
+      },
+      {
+        "label": "Fund Size (AUM)",
+        "value": "USD 1.6 billion"
+      },
+      {
+        "label": "Minimum Initial Investment",
+        "value": "USD 5,000 (retail); USD 500 subsequent"
+      },
+      {
+        "label": "Management Fee",
+        "value": "0.95% p.a."
+      },
+      {
+        "label": "Sales Charge",
+        "value": "Up to 2.0%"
+      },
+      {
+        "label": "Dealing Frequency",
+        "value": "Daily"
+      },
+      {
+        "label": "Distribution Policy",
+        "value": "Quarterly, subject to fund performance"
+      },
+      {
+        "label": "ISIN",
+        "value": "SG9999334455 (USD Dist.)"
+      },
+      {
+        "label": "Regulatory Status",
+        "value": "Authorised Scheme under the Securities and Futures Act (Singapore)"
+      },
+      {
+        "label": "Capital Guarantee",
+        "value": "Not capital guaranteed"
+      }
+    ],
+    "asset_allocation": [
+      {
+        "asset_type": "Global equities",
+        "pct_of_fund": "45%"
+      },
+      {
+        "asset_type": "Global investment-grade bonds",
+        "pct_of_fund": "40%"
+      },
+      {
+        "asset_type": "Listed real estate (REITs)",
+        "pct_of_fund": "5%"
+      },
+      {
+        "asset_type": "Cash & money market instruments",
+        "pct_of_fund": "10%"
+      }
+    ],
+    "who_is_this_for": [
+      "Investors with a Balanced risk profile (Risk Score 5-6).",
+      "Investors seeking a single, professionally rebalanced multi-asset solution.",
+      "Investors comfortable with moderate volatility in exchange for growth potential above pure fixed income."
+    ],
+    "key_risks": [
+      "Market risk: both equity and bond components can lose value, sometimes simultaneously.",
+      "Asset allocation risk: fund performance depends on the Manager's tactical allocation decisions.",
+      "Interest rate and credit risk from the fixed income sleeve.",
+      "Not capital guaranteed and not a deposit; not covered by SDIC."
+    ],
+    "extra_information": null,
+    "source_file": "fund_factsheet_balanced_income_growth.pdf"
+  },
+  {
+    "fund_name": "Dual Currency Investment (DCI) — AUD/USD",
+    "product_type": "FX-Linked Structured Deposit",
+    "document_subtitle": "FX-Linked Structured Deposit Fact Sheet",
+    "summary_risk_indicator": 5,
+    "summary_risk_indicator_label": "HIGH RISK",
+    "as_of_date": "31 August 2026",
+    "document_code": "FS-FX-SG-7X-DCI",
+    "classification": "Internal Use Only",
+    "fund_objective_or_product_description": "The DCI is a short-tenor (typically 1 to 3 months) FX-linked structured deposit denominated in a Base Currency (USD) with an Alternate Currency (AUD).",
+    "minimum_investment": "USD 50,000",
+    "base_currency": "USD",
+    "key_facts": [
+      {
+        "label": "Issuer",
+        "value": "Meridian Peak Bank (Singapore) Limited"
+      },
+      {
+        "label": "Base Currency",
+        "value": "USD"
+      },
+      {
+        "label": "Alternate Currency",
+        "value": "AUD"
+      },
+      {
+        "label": "Tenor",
+        "value": "1 month (rollable at maturity at prevailing terms)"
+      },
+      {
+        "label": "Strike Rate",
+        "value": "Set at inception, typically 1-3% below the prevailing spot rate"
+      },
+      {
+        "label": "Indicative Enhanced Yield",
+        "value": "Up to 6.5% p.a. (vs. approx. 4.0% p.a. on a plain USD fixed deposit of the same tenor)"
+      },
+      {
+        "label": "Principal Protection",
+        "value": "Protected only in the currency of settlement; NOT protected against FX conversion loss"
+      },
+      {
+        "label": "Early Withdrawal",
+        "value": "Not permitted prior to maturity"
+      },
+      {
+        "label": "Deposit Insurance",
+        "value": "NOT covered by the Singapore Deposit Insurance Corporation (SDIC)"
+      },
+      {
+        "label": "Minimum Investment",
+        "value": "USD 50,000"
+      },
+      {
+        "label": "Regulatory Classification",
+        "value": "Specified Investment Product (SIP) / Complex Product under MAS rules"
+      },
+      {
+        "label": "Distributor Restriction",
+        "value": "Not offered to Retail Investors without passed CAR/CKA and signed risk acknowledgement"
+      }
+    ],
+    "asset_allocation": null,
+    "who_is_this_for": [
+      "Sophisticated investors with a Growth or Aggressive Growth risk profile who hold a tactical view on AUD/USD.",
+      "Investors who can accept receiving their principal back in AUD (the weaker currency scenario) without financial hardship.",
+      "Investors who do not need guaranteed access to these funds before maturity."
+    ],
+    "key_risks": [
+      "FX conversion risk: the investor may receive principal and yield in AUD at a rate worse than the market rate at maturity, crystallising a loss versus the original USD amount.",
+      "No early redemption: funds are locked until maturity regardless of the investor's liquidity needs.",
+      "Not deposit insured: despite being issued by a bank, the product is not covered by SDIC.",
+      "Issuer credit risk: repayment depends on the issuing bank's solvency.",
+      "Complexity and rollover risk: investors who roll the DCI repeatedly may not fully appreciate cumulative FX exposure over time."
+    ],
+    "extra_information": null,
+    "source_file": "fund_factsheet_dci_aud_usd.pdf"
+  },
+  {
+    "fund_name": "APEX Global Multi-Asset Autocallable Note — Series 7",
+    "product_type": "Structured Product",
+    "document_subtitle": "Structured Product Fact Sheet",
+    "summary_risk_indicator": 7,
+    "summary_risk_indicator_label": "VERY HIGH RISK",
+    "as_of_date": "31 August 2026",
+    "document_code": "FS-STR-SG-7X-UNSAFE",
+    "classification": "Internal Use Only",
+    "fund_objective_or_product_description": "The Note is a 3-year, non-principal-protected, autocallable structured note linked to the worst-performing of a basket of three underlying assets (a global equity index, a broad commodities index, and a single emerging-market currency pair).",
+    "minimum_investment": "USD 250,000 (or SGD/HKD equivalent)",
+    "base_currency": "USD",
+    "key_facts": [
+      {
+        "label": "Issuer",
+        "value": "Meridian Peak Structured Products (Cayman) Limited"
+      },
+      {
+        "label": "Issuer Credit Rating",
+        "value": "BBB (fictional rating agency, illustrative)"
+      },
+      {
+        "label": "Tenor",
+        "value": "3 years (36 months), subject to early autocall"
+      },
+      {
+        "label": "Underlyings",
+        "value": "Global Equity Index; Broad Commodities Index; USD/IDR exchange rate"
+      },
+      {
+        "label": "Coupon Barrier",
+        "value": "60% of Initial Level (observed quarterly)"
+      },
+      {
+        "label": "Knock-In Barrier",
+        "value": "55% of Initial Level (observed only at final valuation)"
+      },
+      {
+        "label": "Contingent Coupon",
+        "value": "Up to 11.5% p.a., paid only if Coupon Barrier condition is met"
+      },
+      {
+        "label": "Capital Protection",
+        "value": "NONE — capital is fully at risk below the Knock-In Barrier"
+      },
+      {
+        "label": "Minimum Investment",
+        "value": "USD 250,000 (or SGD/HKD equivalent)"
+      },
+      {
+        "label": "Liquidity / Secondary Market",
+        "value": "No public secondary market; early exit only at Issuer's discretion and may be at a significant discount to invested amount"
+      },
+      {
+        "label": "Currency",
+        "value": "USD"
+      },
+      {
+        "label": "Regulatory Classification",
+        "value": "Specified Investment Product (SIP) / Complex Product under MAS rules"
+      },
+      {
+        "label": "Distributor Restriction",
+        "value": "Not offered to Retail Investors without passed CAR/CKA and signed risk acknowledgement"
+      }
+    ],
+    "asset_allocation": null,
+    "who_is_this_for": [
+      "Sophisticated investors (Accredited / Expert / Institutional) with a Growth or Aggressive Growth risk profile (Risk Score 7-10).",
+      "Investors who can bear total loss of the invested capital without impact on their essential financial needs.",
+      "Investors who do not require liquidity for this portion of capital over the 3-year tenor.",
+      "NOT designed for investors seeking capital preservation, income certainty, or short-term liquidity."
+    ],
+    "key_risks": [
+      "Capital loss risk: investors may lose part or all of their invested principal; the coupon is not guaranteed.",
+      "Issuer credit risk: repayment depends on the Issuer's solvency; the Note is an unsecured obligation of the Issuer.",
+      "Market/underlying risk: linked to three different, uncorrelated asset classes (equity, commodities, FX), increasing the probability that at least one underlying breaches its barrier (“worst-of” structure).",
+      "Liquidity risk: no public secondary market; early redemption may not be available or may be at a substantial discount.",
+      "Complexity risk: the payoff is non-linear and path-dependent; investors may not fully understand the conditions under which capital is at risk.",
+      "Currency risk: underlying includes an emerging-market currency pair (USD/IDR), which can be highly volatile.",
+      "Concentration risk: not diversified — a single adverse move in any one underlying determines the worst-of outcome."
+    ],
+    "extra_information": null,
+    "source_file": "fund_factsheet_exotic_unsafe.pdf"
+  },
+  {
+    "fund_name": "Global Bond Income Fund",
+    "product_type": "Global Bond Income Fund",
+    "document_subtitle": "Fund Fact Sheet",
+    "summary_risk_indicator": 2,
+    "summary_risk_indicator_label": "LOW-MEDIUM RISK",
+    "as_of_date": "31 August 2026",
+    "document_code": "FS-FI-SG-011",
+    "classification": "Internal Use Only",
+    "fund_objective_or_product_description": "The Fund aims to provide regular income and modest capital growth by investing in a globally diversified portfolio of investment-grade government and corporate bonds, with a weighted average maturity of approximately 5 to 7 years.",
+    "minimum_investment": "USD 5,000 (retail); USD 500 subsequent",
+    "base_currency": "USD",
+    "key_facts": [
+      {
+        "label": "Fund Manager",
+        "value": "Meridian Peak Asset Management (Singapore) Pte. Ltd."
+      },
+      {
+        "label": "Domicile",
+        "value": "Singapore"
+      },
+      {
+        "label": "Base Currency",
+        "value": "USD (SGD-hedged class available)"
+      },
+      {
+        "label": "Fund Inception",
+        "value": "2 May 2011"
+      },
+      {
+        "label": "Fund Size (AUM)",
+        "value": "USD 3.1 billion"
+      },
+      {
+        "label": "Minimum Initial Investment",
+        "value": "USD 5,000 (retail); USD 500 subsequent"
+      },
+      {
+        "label": "Management Fee",
+        "value": "0.65% p.a."
+      },
+      {
+        "label": "Sales Charge",
+        "value": "Up to 1.0%"
+      },
+      {
+        "label": "Dealing Frequency",
+        "value": "Daily"
+      },
+      {
+        "label": "Distribution Policy",
+        "value": "Monthly"
+      },
+      {
+        "label": "ISIN",
+        "value": "SG9999223344 (USD Dist.)"
+      },
+      {
+        "label": "Regulatory Status",
+        "value": "Authorised Scheme under the Securities and Futures Act (Singapore)"
+      },
+      {
+        "label": "Capital Guarantee",
+        "value": "Not capital guaranteed; underlying bonds are investment-grade (BBB- and above)"
+      }
+    ],
+    "asset_allocation": [
+      {
+        "asset_type": "Developed market sovereign bonds",
+        "pct_of_fund": "40%"
+      },
+      {
+        "asset_type": "Investment-grade corporate bonds (global)",
+        "pct_of_fund": "35%"
+      },
+      {
+        "asset_type": "Asian USD investment-grade bonds",
+        "pct_of_fund": "15%"
+      },
+      {
+        "asset_type": "Cash & money market instruments",
+        "pct_of_fund": "10%"
+      }
+    ],
+    "who_is_this_for": [
+      "Investors with a Cautious to Balanced risk profile (Risk Score 3-6).",
+      "Investors seeking a regular income stream with lower volatility than equities.",
+      "Investors who can accept modest price fluctuation from interest rate movements."
+    ],
+    "key_risks": [
+      "Interest rate risk: bond prices fall when interest rates rise; duration of ~5-7 years means moderate sensitivity.",
+      "Credit risk: possibility of issuer downgrade or default, though holdings are investment-grade.",
+      "Currency risk: unhedged share classes are exposed to USD movements against the investor's base currency.",
+      "Not capital guaranteed and not a deposit; not covered by SDIC."
+    ],
+    "extra_information": null,
+    "source_file": "fund_factsheet_global_bond_income.pdf"
+  },
+  {
+    "fund_name": "Global Real Estate Income Trust Basket",
+    "product_type": "Global Real Estate Income Trust Basket",
+    "document_subtitle": "Fund Fact Sheet",
+    "summary_risk_indicator": 3,
+    "summary_risk_indicator_label": "MEDIUM RISK",
+    "as_of_date": "31 August 2026",
+    "document_code": "FS-REIT-SG-015",
+    "classification": "Internal Use Only",
+    "fund_objective_or_product_description": "The Fund aims to provide regular income with modest capital growth by investing in a diversified basket of listed Real Estate Investment Trusts (REITs) across Asia-Pacific, Europe, and North America, spanning retail, office, industrial/logistics, and hospitality property sectors.",
+    "minimum_investment": "USD 5,000 (retail); USD 500 subsequent",
+    "base_currency": "USD",
+    "key_facts": [
+      {
+        "label": "Fund Manager",
+        "value": "Meridian Peak Asset Management (Singapore) Pte. Ltd."
+      },
+      {
+        "label": "Domicile",
+        "value": "Singapore"
+      },
+      {
+        "label": "Base Currency",
+        "value": "USD"
+      },
+      {
+        "label": "Fund Inception",
+        "value": "4 April 2016"
+      },
+      {
+        "label": "Fund Size (AUM)",
+        "value": "USD 780 million"
+      },
+      {
+        "label": "Minimum Initial Investment",
+        "value": "USD 5,000 (retail); USD 500 subsequent"
+      },
+      {
+        "label": "Management Fee",
+        "value": "0.85% p.a."
+      },
+      {
+        "label": "Sales Charge",
+        "value": "Up to 2.0%"
+      },
+      {
+        "label": "Dealing Frequency",
+        "value": "Daily"
+      },
+      {
+        "label": "Distribution Policy",
+        "value": "Quarterly"
+      },
+      {
+        "label": "ISIN",
+        "value": "SG9999556677 (USD Dist.)"
+      },
+      {
+        "label": "Regulatory Status",
+        "value": "Authorised Scheme under the Securities and Futures Act (Singapore)"
+      },
+      {
+        "label": "Capital Guarantee",
+        "value": "Not capital guaranteed"
+      }
+    ],
+    "asset_allocation": [
+      {
+        "asset_type": "Singapore REITs",
+        "pct_of_fund": "30%"
+      },
+      {
+        "asset_type": "Hong Kong REITs",
+        "pct_of_fund": "20%"
+      },
+      {
+        "asset_type": "Australia REITs",
+        "pct_of_fund": "20%"
+      },
+      {
+        "asset_type": "US & Global REITs",
+        "pct_of_fund": "30%"
+      }
+    ],
+    "who_is_this_for": [
+      "Investors with a Balanced risk profile (Risk Score 4-6) seeking income and real-asset diversification.",
+      "Investors comfortable with listed real estate's sensitivity to interest rates.",
+      "Investors seeking an alternative income source to traditional bonds."
+    ],
+    "key_risks": [
+      "Interest rate sensitivity: REIT valuations are typically sensitive to interest rate movements.",
+      "Property market risk: rental income and property valuations can decline in a downturn.",
+      "Market/liquidity risk: while underlying REITs are exchange-listed and generally liquid, prices can be volatile.",
+      "Currency risk from non-USD REIT holdings.",
+      "Not capital guaranteed and not a deposit; not covered by SDIC."
+    ],
+    "extra_information": null,
+    "source_file": "fund_factsheet_global_reit_basket.pdf"
+  },
+  {
+    "fund_name": "Global Technology Innovation Fund",
+    "product_type": "Fund",
+    "document_subtitle": "Fund Fact Sheet",
+    "summary_risk_indicator": 5,
+    "summary_risk_indicator_label": "HIGH RISK",
+    "as_of_date": "31 August 2026",
+    "document_code": "FS-EQ-SG-013",
+    "classification": "Internal Use Only",
+    "fund_objective_or_product_description": "The Fund aims to achieve high long-term capital growth by investing in a concentrated portfolio of global technology and technology-enabled companies, including software, semiconductors, artificial intelligence, and internet platform businesses. The Fund is sector-concentrated by design and does not aim to track a broad market index.",
+    "minimum_investment": "USD 5,000 (retail); USD 500 subsequent",
+    "base_currency": "USD",
+    "key_facts": [
+      {
+        "label": "Fund Manager",
+        "value": "Meridian Peak Asset Management (Singapore) Pte. Ltd."
+      },
+      {
+        "label": "Domicile",
+        "value": "Singapore"
+      },
+      {
+        "label": "Base Currency",
+        "value": "USD"
+      },
+      {
+        "label": "Fund Inception",
+        "value": "11 November 2018"
+      },
+      {
+        "label": "Fund Size (AUM)",
+        "value": "USD 1.1 billion"
+      },
+      {
+        "label": "Minimum Initial Investment",
+        "value": "USD 5,000 (retail); USD 500 subsequent"
+      },
+      {
+        "label": "Management Fee",
+        "value": "1.50% p.a."
+      },
+      {
+        "label": "Sales Charge",
+        "value": "Up to 3.0%"
+      },
+      {
+        "label": "Dealing Frequency",
+        "value": "Daily"
+      },
+      {
+        "label": "Distribution Policy",
+        "value": "None (accumulating)"
+      },
+      {
+        "label": "ISIN",
+        "value": "SG9999445566 (USD Acc.)"
+      },
+      {
+        "label": "Regulatory Status",
+        "value": "Authorised Scheme under the Securities and Futures Act (Singapore)"
+      },
+      {
+        "label": "Capital Guarantee",
+        "value": "Not capital guaranteed; high sector concentration"
+      }
+    ],
+    "asset_allocation": [
+      {
+        "asset_type": "North America",
+        "pct_of_fund": "55%"
+      },
+      {
+        "asset_type": "Asia (incl. Greater China, Korea, Taiwan)",
+        "pct_of_fund": "30%"
+      },
+      {
+        "asset_type": "Europe",
+        "pct_of_fund": "15%"
+      }
+    ],
+    "who_is_this_for": [
+      "Investors with a Growth to Aggressive Growth risk profile (Risk Score 7-10).",
+      "Investors who understand and accept single-sector concentration risk.",
+      "Investors with a long horizon (7+ years) able to withstand sharp drawdowns."
+    ],
+    "key_risks": [
+      "Sector concentration risk: performance is heavily dependent on the technology sector, unlike diversified equity funds.",
+      "Valuation risk: growth/technology stocks can trade at high valuations, increasing sensitivity to rate changes and sentiment shifts.",
+      "High volatility: historically larger drawdowns than broad market indices.",
+      "Currency risk from non-USD revenue exposure of underlying holdings.",
+      "Not capital guaranteed and not a deposit; not covered by SDIC."
+    ],
+    "extra_information": null,
+    "source_file": "fund_factsheet_global_tech_innovation.pdf"
+  },
+  {
+    "fund_name": "Meridian Peak Regular Premium Investment-Linked Policy",
+    "product_type": "Insurance-Linked Investment (ILP) Product",
+    "document_subtitle": "Insurance-Linked Investment (ILP) Product Summary",
+    "summary_risk_indicator": 4,
+    "summary_risk_indicator_label": "MEDIUM-HIGH RISK",
+    "as_of_date": "31 August 2026",
+    "document_code": "FS-ILP-SG-014",
+    "classification": "Internal Use Only",
+    "fund_objective_or_product_description": "The Policy combines life insurance coverage with an investment account. Regular premiums are allocated between insurance and other charges (mortality charge, policy fee, and initial allocation charge) and units purchased in the policyholder's chosen underlying sub-fund(s), selected from the Fund Manager's approved sub-fund menu (equity, bond, or balanced-style sub-funds). The investment value is not guaranteed and depends on the performance of the chosen sub-fund(s) after deduction of all charges.",
+    "minimum_investment": "USD 300/month or USD 3,000/year",
+    "base_currency": "USD",
+    "key_facts": [
+      {
+        "label": "Product Provider",
+        "value": "Meridian Peak Life Assurance (Singapore) Pte. Ltd."
+      },
+      {
+        "label": "Policy Term",
+        "value": "20 years, or to age 65, whichever is later (client-selected at inception)"
+      },
+      {
+        "label": "Premium Structure",
+        "value": "Regular premium, monthly or annual, reviewable"
+      },
+      {
+        "label": "Minimum Premium",
+        "value": "USD 300/month or USD 3,000/year"
+      },
+      {
+        "label": "Death Benefit",
+        "value": "Higher of sum assured or investment account value, less indebtedness"
+      },
+      {
+        "label": "Initial Allocation Charge",
+        "value": "Up to 60% of premium in policy years 1-2, reducing to 0% by year 6"
+      },
+      {
+        "label": "Mortality & Policy Charges",
+        "value": "Deducted monthly by cancellation of units; increase with policyholder age"
+      },
+      {
+        "label": "Surrender Charge",
+        "value": "Up to 90% of account value if surrendered in year 1, reducing to 0% after year 10"
+      },
+      {
+        "label": "Free-Look Period",
+        "value": "14 days from policy delivery"
+      },
+      {
+        "label": "Sub-Fund Choices",
+        "value": "Equity, Bond, and Balanced-style sub-funds managed by Meridian Peak Asset Management"
+      },
+      {
+        "label": "Guaranteed Maturity / Cash Value",
+        "value": "None — investment value is not guaranteed at any time"
+      },
+      {
+        "label": "Illustrative Default Sub-Fund Allocation",
+        "value": "Balanced-style sub-fund 60%, Bond-style sub-fund 30%, Equity-style sub-fund 10%"
+      }
+    ],
+    "asset_allocation": [
+      {
+        "asset_type": "Balanced-style sub-fund",
+        "pct_of_fund": "60%"
+      },
+      {
+        "asset_type": "Bond-style sub-fund",
+        "pct_of_fund": "30%"
+      },
+      {
+        "asset_type": "Equity-style sub-fund",
+        "pct_of_fund": "10%"
+      }
+    ],
+    "who_is_this_for": [
+      "Investors who want life insurance protection combined with investment exposure in a single product.",
+      "Investors who intend to hold the Policy for its full term (10+ years) and understand early surrender is costly.",
+      "Not designed for investors seeking pure investment returns or short-term liquidity — a standalone fund or MMF is likely more cost-efficient for that objective."
+    ],
+    "key_risks": [
+      "High early surrender charges: cancelling in the first few years can result in receiving significantly less than premiums paid, potentially close to zero in year 1.",
+      "Charges reduce investment returns: mortality and policy charges increase with age and reduce the amount actually invested.",
+      "Non-guaranteed values: both the death benefit investment component and any illustrated cash values are not guaranteed.",
+      "Underlying sub-fund investment risk: market, credit, and currency risks of the chosen sub-fund(s) apply in full.",
+      "Complexity risk: total cost of ownership is harder to compare directly to a standalone fund due to the combination of insurance and investment charges."
+    ],
+    "extra_information": null,
+    "source_file": "fund_factsheet_ilp_regular_premium.pdf"
+  },
+  {
+    "fund_name": "Pacific Growth Equity Fund",
+    "product_type": "Regional Equity Growth",
+    "document_subtitle": "Fund Fact Sheet",
+    "summary_risk_indicator": 4,
+    "summary_risk_indicator_label": "MEDIUM-HIGH RISK",
+    "as_of_date": "31 August 2026",
+    "document_code": "FS-EQ-SG-010",
+    "classification": "Internal Use Only",
+    "fund_objective_or_product_description": "The Fund aims to achieve long-term capital growth by investing primarily in equities of companies listed in, or with significant business exposure to, the Asia-Pacific region (excluding Japan). The Fund invests across large- and mid-capitalisation companies and may use derivatives for hedging purposes only.",
+    "minimum_investment": "USD 5,000 (retail); USD 500 subsequent",
+    "base_currency": "USD",
+    "key_facts": [
+      {
+        "label": "Fund Manager",
+        "value": "Meridian Peak Asset Management (Singapore) Pte. Ltd."
+      },
+      {
+        "label": "Domicile",
+        "value": "Singapore"
+      },
+      {
+        "label": "Base Currency",
+        "value": "USD (SGD-hedged class also available)"
+      },
+      {
+        "label": "Fund Inception",
+        "value": "8 September 2012"
+      },
+      {
+        "label": "Fund Size (AUM)",
+        "value": "USD 2.4 billion"
+      },
+      {
+        "label": "Minimum Initial Investment",
+        "value": "USD 5,000 (retail); USD 500 subsequent"
+      },
+      {
+        "label": "Management Fee",
+        "value": "1.25% p.a."
+      },
+      {
+        "label": "Sales Charge",
+        "value": "Up to 3.0%"
+      },
+      {
+        "label": "Dealing Frequency",
+        "value": "Daily"
+      },
+      {
+        "label": "Distribution Policy",
+        "value": "Annual, subject to fund performance"
+      },
+      {
+        "label": "ISIN",
+        "value": "SG9999112233 (USD Acc.)"
+      },
+      {
+        "label": "Regulatory Status",
+        "value": "Authorised Scheme under the Securities and Futures Act (Singapore)"
+      },
+      {
+        "label": "Capital Guarantee",
+        "value": "Not capital guaranteed; equity market risk applies"
+      }
+    ],
+    "asset_allocation": [
+      {
+        "asset_type": "Greater China (HK / China)",
+        "pct_of_fund": "28%"
+      },
+      {
+        "asset_type": "Singapore",
+        "pct_of_fund": "18%"
+      },
+      {
+        "asset_type": "India",
+        "pct_of_fund": "20%"
+      },
+      {
+        "asset_type": "ASEAN (ex-Singapore)",
+        "pct_of_fund": "19%"
+      },
+      {
+        "asset_type": "Australia & New Zealand",
+        "pct_of_fund": "15%"
+      }
+    ],
+    "who_is_this_for": [
+      "Investors with a Growth risk profile (Risk Score 6-8).",
+      "Investors with a long-term horizon (5+ years) who can tolerate equity market volatility.",
+      "Investors seeking regional diversification within Asia-Pacific."
+    ],
+    "key_risks": [
+      "Market risk: equity values can fluctuate significantly, including sustained downturns.",
+      "Currency risk: unhedged share classes are exposed to regional currency movements against the base currency.",
+      "Emerging market risk: certain underlying markets have less developed regulatory and settlement infrastructure.",
+      "Concentration risk: regional focus means the Fund is more exposed to Asia-Pacific-specific events than a globally diversified fund.",
+      "Not capital guaranteed and not a deposit; not covered by SDIC."
+    ],
+    "extra_information": null,
+    "source_file": "fund_factsheet_pacific_growth_equity.pdf"
+  },
+  {
+    "fund_name": "Private Equity Co-Investment Vehicle — Fund IV",
+    "product_type": "Private Equity Co-Investment Vehicle",
+    "document_subtitle": "Alternative Investment Fact Sheet",
+    "summary_risk_indicator": 6,
+    "summary_risk_indicator_label": "HIGH RISK / ILLIQUID",
+    "as_of_date": "31 August 2026",
+    "document_code": "FS-ALT-SG-7X-PE",
+    "classification": "Internal Use Only",
+    "fund_objective_or_product_description": "The Vehicle provides investors with co-investment exposure alongside a lead private equity sponsor into a diversified portfolio of unlisted growth-stage and buyout companies across Asia-Pacific. Capital is drawn progressively via capital calls over a 5-year investment period and returned as underlying investments are realised over the fund's life.",
+    "minimum_investment": "USD 500,000",
+    "base_currency": "USD",
+    "key_facts": [
+      {
+        "label": "Structure",
+        "value": "Closed-end limited partnership (Cayman Islands)"
+      },
+      {
+        "label": "Fund Term",
+        "value": "10 years from final close, plus up to two 1-year extensions at GP discretion"
+      },
+      {
+        "label": "Investment Period",
+        "value": "5 years from final close"
+      },
+      {
+        "label": "Minimum Commitment",
+        "value": "USD 500,000"
+      },
+      {
+        "label": "Capital Call Mechanism",
+        "value": "Drawn progressively on 10-15 business days' notice; missed calls may incur default penalties, including forfeiture of prior contributions"
+      },
+      {
+        "label": "Management Fee",
+        "value": "1.75% p.a. on committed capital during investment period"
+      },
+      {
+        "label": "Performance Fee (Carry)",
+        "value": "20% of profits above an 8% p.a. hurdle rate"
+      },
+      {
+        "label": "Valuation Frequency",
+        "value": "Quarterly, based on GP-estimated fair value (not an independent market price)"
+      },
+      {
+        "label": "Secondary Market / Liquidity",
+        "value": "None; no right of early redemption or withdrawal"
+      },
+      {
+        "label": "Currency",
+        "value": "USD"
+      },
+      {
+        "label": "Regulatory Classification",
+        "value": "Restricted / Complex Product; not offered to Retail Investors"
+      },
+      {
+        "label": "Illustrative Cash Flow Profile",
+        "value": "Years 1-3: Negative (capital calls exceed distributions); Years 4-7: Mixed to positive; Years 8-10+: Positive"
+      }
+    ],
+    "asset_allocation": null,
+    "who_is_this_for": [
+      "Accredited, Expert, or Institutional Investors only.",
+      "Investors with a Growth to Aggressive Growth risk profile and a 10+ year horizon.",
+      "Investors who do not require liquidity from this portion of their portfolio and can meet future capital calls."
+    ],
+    "key_risks": [
+      "Illiquidity risk: capital is locked up for up to 10-12 years with no early exit.",
+      "Capital call / default risk: failure to fund a capital call on time can result in penalties, dilution, or forfeiture of the investor's interest.",
+      "Valuation risk: quarterly NAVs are GP estimates, not independent market prices, and may not reflect realisable value.",
+      "Leverage risk: underlying portfolio companies may themselves be leveraged, amplifying losses in a downturn.",
+      "J-curve risk: early years typically show negative net returns before later-stage gains, if any.",
+      "Total loss risk: individual portfolio companies, or the fund as a whole, can lose most or all of their value."
+    ],
+    "extra_information": null,
+    "source_file": "fund_factsheet_private_equity_fund_iv.pdf"
+  },
+  {
+    "fund_name": "APAC Stable Income Money Market Fund",
+    "product_type": "Money Market Fund",
+    "document_subtitle": "Fund Fact Sheet",
+    "summary_risk_indicator": 1,
+    "summary_risk_indicator_label": "LOW RISK",
+    "as_of_date": "31 August 2026",
+    "document_code": "FS-MMF-SG-002",
+    "classification": "Internal Use Only",
+    "fund_objective_or_product_description": "The Fund aims to provide capital preservation and stable, modest income by investing primarily in short-duration Singapore and Asian government securities, high-grade corporate bonds, and money market instruments with a weighted average maturity of less than 12 months. The Fund is designed for investors seeking liquidity and low volatility rather than capital growth.",
+    "minimum_investment": "SGD 10,000 (retail); SGD 1,000 subsequent",
+    "base_currency": "SGD",
+    "key_facts": [
+      {
+        "label": "Fund Manager",
+        "value": "Meridian Peak Asset Management (Singapore) Pte. Ltd."
+      },
+      {
+        "label": "Domicile",
+        "value": "Singapore"
+      },
+      {
+        "label": "Base Currency",
+        "value": "SGD (share classes also available in USD)"
+      },
+      {
+        "label": "Fund Inception",
+        "value": "14 March 2015"
+      },
+      {
+        "label": "Fund Size (AUM)",
+        "value": "SGD 1.82 billion"
+      },
+      {
+        "label": "Minimum Initial Investment",
+        "value": "SGD 10,000 (retail); SGD 1,000 subsequent"
+      },
+      {
+        "label": "Management Fee",
+        "value": "0.35% p.a."
+      },
+      {
+        "label": "Sales Charge",
+        "value": "Up to 0.5% (typically waived for existing clients)"
+      },
+      {
+        "label": "Dealing Frequency",
+        "value": "Daily"
+      },
+      {
+        "label": "Distribution Policy",
+        "value": "Monthly, subject to fund performance"
+      },
+      {
+        "label": "ISIN",
+        "value": "SG9999012345 (SGD Acc.) / SG9999067890 (USD Dist.)"
+      },
+      {
+        "label": "Regulatory Status",
+        "value": "Authorised Scheme under the Securities and Futures Act (Singapore)"
+      },
+      {
+        "label": "Capital Guarantee",
+        "value": "Not capital guaranteed; not covered by SDIC deposit insurance"
+      }
+    ],
+    "asset_allocation": [
+      {
+        "asset_type": "Singapore Government Treasury Bills / SGS (short-duration)",
+        "pct_of_fund": "38%"
+      },
+      {
+        "asset_type": "Investment-grade Asian corporate bonds (A- and above)",
+        "pct_of_fund": "32%"
+      },
+      {
+        "asset_type": "Bank fixed deposits & certificates of deposit",
+        "pct_of_fund": "18%"
+      },
+      {
+        "asset_type": "Other money market instruments & cash",
+        "pct_of_fund": "12%"
+      }
+    ],
+    "who_is_this_for": [
+      "Investors with a Conservative to Balanced risk profile.",
+      "Investors seeking capital stability and liquidity over growth.",
+      "Suitable as a cash-management or short-term holding vehicle.",
+      "Available to Retail Investors; no accreditation required."
+    ],
+    "key_risks": [
+      "Interest rate risk: fund value may fluctuate modestly with short-term interest rate movements.",
+      "Credit risk: issuers of underlying bonds and deposits could default, though holdings are investment-grade.",
+      "Currency risk: applicable only to non-base-currency share classes.",
+      "Not principal-guaranteed and not a deposit; not covered by the Singapore Deposit Insurance Corporation (SDIC)."
+    ],
+    "extra_information": null,
+    "source_file": "fund_factsheet_safe.pdf"
+  }
+]
