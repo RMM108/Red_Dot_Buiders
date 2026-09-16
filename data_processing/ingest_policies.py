@@ -35,9 +35,9 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-from vector_store import CHROMA_DIR, get_chroma_collection, replace_chunks_for
+from vector_store import CHROMA_DIR, get_chroma_collection, keyword_boosted_query, replace_chunks_for
 
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent.parent / "data"
 COLLECTION_NAME = "policies"
 
 SECTION_HEADER_RE = re.compile(r"(?m)^(\d{1,2})\.\s+(.+)$")
@@ -188,44 +188,17 @@ def ingest_all(pdf_paths: list[Path]) -> list[dict]:
 # 3. Retrieval (what the chatbot's get_policy_section / search_documents tool calls)
 # --------------------------------------------------------------------------
 
-NUMERIC_TOKEN_RE = re.compile(r"\d+(?:\.\d+)?%|\d+/\d+")
-
-
 def query_policy(question: str, n_results: int = 3, document_code: str | None = None) -> list[dict]:
-    """Vector search alone under-ranks short, specific-threshold sections
-    against longer, topically-generic ones - found by testing: querying
-    "20% concentration guideline" put POL-INV-011 Section 4 (the section
-    that actually states the 20% cap) *last* out of 14 chunks, below
-    "Purpose" and "Client Risk Rating". Exact numeric thresholds are
-    precisely what a compliance query can't afford to miss, so any chunk
-    containing a numeric token from the query verbatim (e.g. "20%") is
-    boosted to the front regardless of its embedding similarity rank."""
+    """See vector_store.keyword_boosted_query for why this isn't plain
+    vector search - found by testing: querying "20% concentration guideline"
+    put POL-INV-011 Section 4 (the section that actually states the 20% cap)
+    *last* out of 14 chunks, below "Purpose" and "Client Risk Rating"."""
     collection = get_collection()
     where = {"document_code": document_code} if document_code else None
-
-    vec_results = collection.query(query_texts=[question], n_results=max(n_results, 6), where=where)
-    candidates = [
-        {"doc": doc, "meta": meta, "similarity": round(1 - dist, 4), "keyword_hit": False}
-        for doc, meta, dist in zip(vec_results["documents"][0], vec_results["metadatas"][0], vec_results["distances"][0])
-    ]
-
-    query_tokens = set(NUMERIC_TOKEN_RE.findall(question))
-    if query_tokens:
-        all_chunks = collection.get(where=where)
-        for doc, meta in zip(all_chunks["documents"], all_chunks["metadatas"]):
-            if not any(tok in doc for tok in query_tokens):
-                continue
-            existing = next((c for c in candidates if c["meta"]["document_code"] == meta["document_code"]
-                              and c["meta"]["section_number"] == meta["section_number"]), None)
-            if existing:
-                existing["keyword_hit"] = True
-            else:
-                candidates.append({"doc": doc, "meta": meta, "similarity": None, "keyword_hit": True})
-
-    candidates.sort(key=lambda c: (not c["keyword_hit"], -(c["similarity"] or 0)))
+    candidates = keyword_boosted_query(collection, question, n_results=n_results, where=where)
 
     out = []
-    for c in candidates[:n_results]:
+    for c in candidates:
         meta = c["meta"]
         out.append({
             "policy_name": meta["policy_name"],

@@ -34,7 +34,7 @@ from typing import Optional
 
 import db
 
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent.parent / "data"
 PROCESSED_DIR = DATA_DIR / "processed"
 CLIENTS_JSON = DATA_DIR / "clients_portfolio.json"
 TRANSACTIONS_CSV = DATA_DIR / "transactions.csv"

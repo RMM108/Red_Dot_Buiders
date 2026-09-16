@@ -194,22 +194,24 @@ piece from the original design not built is an optional chat UI.
 +-----------------------------------------------------------------------+
                                     |
                                     v
-+------------------------------------------------------+    +---------------------------------------------------+
-|         SQL STORE  (SQLite, db.py)  [BUILT]          |    |    VECTOR STORE  (Chroma ./chroma_db)  [BUILT]    |
-|                                                      |    |                                                   |
-| clients       15 rows, KYC + risk profile (cleaned)  |    | policies          14 chunks                       |
-| holdings      70 rows                                |    | fund_factsheets   30 chunks (objective, who-for,  |
-| transactions  55 rows (2 flagged non-product)        |    |                   key_risks, extra_info per fund) |
-| funds         10 rows: SRI, min investment, base_ccy,|    | call_notes        10 chunks                       |
-|               doc_code  <- structured half of        |    | complaints        2 chunks                        |
-|               fund_factsheets_structured.json        |    | correspondence    7 chunks                        |
-| fund_key_facts (127) / fund_asset_allocation (27)    |    | ack_forms         2 chunks                        |
-| product_crosswalk  11 products, 1 gap found          |    |   (blank template tagged is_blank_template=True,  |
-|   (Singapore Government Bond Fund - no fact sheet)   |    |    excluded from 'signed acknowledgement' evidence|
-|                                                      |    |    by default)                                    |
-+------------------------------------------------------+    +---------------------------------------------------+
-                                                        |
-                                                        v
++------------------------------------------------------+    +------------------------------------------------------+
+|         SQL STORE  (SQLite, db.py)  [BUILT]          |    |     VECTOR STORE  (Chroma ./chroma_db)  [BUILT]      |
+|                                                      |    |                                                      |
+| clients       15 rows, KYC + risk profile (cleaned)  |    | policies          14 chunks                          |
+| holdings      70 rows                                |    | fund_factsheets   157 chunks (objective, who-for,    |
+| transactions  55 rows (2 flagged non-product)        |    |                   key_risks, extra_info, +1 per      |
+| funds         10 rows: SRI, min investment, base_ccy,|    |                   key_fact row - all context-prefixed|
+|               doc_code  <- structured half of        |    |                   with fund name for retrieval)      |
+|               fund_factsheets_structured.json        |    | call_notes        10 chunks                          |
+| fund_key_facts (127) / fund_asset_allocation (27)    |    | complaints        2 chunks                           |
+| product_crosswalk  11 products, 1 gap found          |    | correspondence    7 chunks                           |
+|   (Singapore Government Bond Fund - no fact sheet)   |    | ack_forms         2 chunks                           |
+|                                                      |    |   (blank template tagged is_blank_template=True,     |
+|                                                      |    |    excluded from 'signed acknowledgement' evidence   |
+|                                                      |    |    by default)                                       |
++------------------------------------------------------+    +------------------------------------------------------+
+                                                          |
+                                                          v
 +--------------------------------------------------------------------------------+
 |                    AGENT ORCHESTRATOR  (agent.py)  [BUILT]                     |
 |                                                                                |
@@ -418,7 +420,8 @@ remains.
    Fund** has no fact sheet, as predicted in §3.1.
 3. **Fund fact sheet vector collection** — `ingest_fund_vectors.py` embeds
    the narrative fields from `fund_factsheets_structured.json` into a
-   `fund_factsheets` Chroma collection (30 chunks, 3 per fund). Spot-checked
+   `fund_factsheets` Chroma collection (157 chunks — see the retrieval-quality
+   pass in item 6a below for why this grew from the original 30). Spot-checked
    with a cross-fund semantic query ("which fund has FX currency risk") —
    correctly top-ranked the DCI (the actual FX-linked product).
 4. **Remaining document ingestion** — `ingest_call_notes.py` (10 chunks,
@@ -448,6 +451,46 @@ remains.
    adding a keyword-match boost to `query_policy()` in `ingest_policies.py`:
    any chunk containing a numeric token from the query verbatim (e.g.
    `"20%"`) is promoted to the front regardless of embedding rank.
+6a. **Retrieval-quality pass** (later session) — revisited
+    `ingest_factsheet.py`, `ingest_fund_vectors.py`, `ingest_policies.py`
+    specifically for RAG-eval quality. `ingest_factsheet.py` needed no
+    changes (extraction/grounding already validated). Two real, evidence-based
+    fixes to the other two:
+    - **Missing entity context in embedded text.** `ingest_fund_vectors.py`
+      embedded each narrative section's raw text with no fund name in it —
+      only in metadata, which the embedding function never sees. Tested: a
+      query that explicitly named "Balanced Income and Growth Fund" still
+      only beat 3 unrelated funds' chunks by a 0.02 similarity margin
+      (0.66 vs 0.62–0.64). Fixed by prepending `f"{fund_name} - {section}:"`
+      to every chunk's embedded text (the "contextual retrieval" pattern).
+      Same query re-tested afterward: correct fund's 4 chunks now
+      dominate the top 4 by a wide margin (0.78 vs next-fund 0.6-ish).
+    - **No searchable path to a fund's numeric facts without already
+      knowing the fund.** `key_facts` rows (SRI, minimum investment, fees,
+      barriers, ...) lived only in SQL, reachable only via
+      `get_fund_factsheet(product_name)` — useless for "which fund has X"
+      questions. Added one vector chunk per key-facts row (127 more chunks,
+      `fund_factsheets` grew from 30 → 157). This exposed the *same*
+      numeric-under-ranking defect found earlier in policies: "which fund
+      has a minimum investment of USD 250,000" didn't return the APEX note
+      (the actual answer) in the top 4 at all. The keyword-boost fix from
+      `ingest_policies.py` was generalized into
+      `vector_store.keyword_boosted_query()` (broadened to also catch
+      comma-grouped numbers like `"250,000"`, not just `%`/fractions) and
+      both `query_policy()` and `query_fund_factsheets()` now share it —
+      re-tested, correct fund now ranks first.
+    - **Found but not fixed (out of scope for these 3 files):** the agent
+      picked the wrong tool for "which fund has X" discovery questions
+      (tried `get_fund_factsheet` with a description instead of
+      `search_documents`) — an `agent.py` prompt gap, not a retrieval gap;
+      `search_documents` itself was verified to return the right answer
+      when called directly. Also found a likely regression from the
+      earlier CL011 abstention-tuning: row 4 (CL002, a textbook mis-sale
+      with no real ambiguity) now abstains and opens with "is ambiguous"
+      — the hedge-detection instructions added for CL011 appear to have
+      over-generalized to a case that shouldn't be hedged. Both are
+      `agent.py` issues and were left alone since this pass was scoped to
+      ingestion/retrieval, not the orchestrator prompt.
 7. **Citation + abstention layer** — built into `agent.py`'s
    `EvidencePool`/`AgentAnswer` design: every tool call appends evidence
    tagged with a `ref_id`, the model's final answer must cite by `ref_id`

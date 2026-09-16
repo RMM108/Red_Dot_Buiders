@@ -26,33 +26,54 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from vector_store import get_chroma_collection, replace_chunks_for
+from vector_store import get_chroma_collection, keyword_boosted_query, replace_chunks_for
 
-PROCESSED_DIR = Path(__file__).parent / "data" / "processed"
+PROCESSED_DIR = Path(__file__).parent.parent / "data" / "processed"
 FUNDS_JSON = PROCESSED_DIR / "fund_factsheets_structured.json"
 COLLECTION_NAME = "fund_factsheets"
 
 
 def sections_for_fund(fund: dict) -> list[dict]:
+    """Every chunk's embedded text is prefixed with the fund name. Found by
+    testing: a query that explicitly named a fund still only won its own
+    who_is_this_for chunk by a 0.02 margin over 3 unrelated funds' chunks
+    (0.66 vs 0.62-0.64), because the embedded text itself never mentions
+    which fund it's about - only the metadata does, and Chroma's embedding
+    function only sees `documents`, not `metadatas`. Prepending the fund
+    name (a standard "contextual retrieval" technique) puts that identity
+    signal into the vector itself."""
+    fund_name = fund["fund_name"]
+
     sections = [{
         "section": "objective",
-        "text": fund["fund_objective_or_product_description"],
+        "text": f"{fund_name} - objective:\n{fund['fund_objective_or_product_description']}",
     }]
 
     if fund["who_is_this_for"]:
         sections.append({
             "section": "who_is_this_for",
-            "text": "Who is this fund/product designed for?\n" + "\n".join(f"- {b}" for b in fund["who_is_this_for"]),
+            "text": f"{fund_name} - who is this designed for?\n" + "\n".join(f"- {b}" for b in fund["who_is_this_for"]),
         })
 
     if fund["key_risks"]:
         sections.append({
             "section": "key_risks",
-            "text": "Key risks:\n" + "\n".join(f"- {b}" for b in fund["key_risks"]),
+            "text": f"{fund_name} - key risks:\n" + "\n".join(f"- {b}" for b in fund["key_risks"]),
         })
 
     for i, item in enumerate(fund.get("extra_information") or []):
-        sections.append({"section": f"extra_information_{i}", "text": item})
+        sections.append({"section": f"extra_information_{i}", "text": f"{fund_name}: {item}"})
+
+    # key_facts rows are also in the `fund_key_facts` SQL table (exact lookup
+    # once you know the fund), but weren't searchable at all here - a cross-fund
+    # query like "which fund has a management fee under 1%" had nothing to
+    # match against without already knowing which fund to ask about. One chunk
+    # per row makes each fact independently retrievable by semantic search.
+    for i, kf in enumerate(fund.get("key_facts") or []):
+        sections.append({
+            "section": f"key_fact_{i}",
+            "text": f"{fund_name} - {kf['label']}: {kf['value']}",
+        })
 
     return sections
 
@@ -78,18 +99,25 @@ def ingest_fund(fund: dict, collection) -> dict:
 
 
 def query_fund_factsheets(question: str, n_results: int = 3, fund_name: str | None = None) -> list[dict]:
+    """See vector_store.keyword_boosted_query for why this isn't plain vector
+    search - found by testing: "which fund has a minimum investment of USD
+    250,000" didn't return the APEX note (the fund that actually has that
+    minimum) in the top 4 at all, returning four *other* funds' minimum-
+    investment rows instead - embedding similarity alone doesn't reliably
+    match on a specific number."""
     collection = get_chroma_collection(COLLECTION_NAME)
     where = {"fund_name": fund_name} if fund_name else None
-    results = collection.query(query_texts=[question], n_results=n_results, where=where)
+    candidates = keyword_boosted_query(collection, question, n_results=n_results, where=where)
 
     out = []
-    for doc, meta, dist in zip(results["documents"][0], results["metadatas"][0], results["distances"][0]):
+    for c in candidates:
+        meta = c["meta"]
         out.append({
             "fund_name": meta["fund_name"],
             "section": meta["section"],
             "summary_risk_indicator": meta["summary_risk_indicator"],
-            "similarity": round(1 - dist, 4),
-            "text": doc,
+            "similarity": c["similarity"],
+            "text": c["doc"],
         })
     return out
 

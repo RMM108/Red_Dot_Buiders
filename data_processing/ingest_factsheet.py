@@ -38,9 +38,9 @@ from openai import OpenAI
 from pydantic import BaseModel
 from pypdf import PdfReader
 
-load_dotenv(dotenv_path=Path(__file__).parent / ".env")
+load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
 
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent.parent / "data"
 PROCESSED_DIR = DATA_DIR / "processed"
 DATASET_JSON = PROCESSED_DIR / "fund_factsheets_structured.json"
 DATASET_CSV = PROCESSED_DIR / "fund_factsheets_structured.csv"
