@@ -15,6 +15,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Prefer the env var / .env for local dev; on Streamlit Cloud the key comes
+# from Streamlit Secrets, which Streamlit injects as an env var only if it is
+# named OPENAI_API_KEY. This fallback ensures the key is available either way
+# without ever being hardcoded or sent to the browser.
+if not os.getenv("OPENAI_API_KEY"):
+    os.environ["OPENAI_API_KEY"] = st.secrets.get("OPENAI_API_KEY", "")
+
 # agent.py and its sibling ingestion modules live in data_processing/ as flat
 # (non-package) modules with bare imports (e.g. `import db`), so they're loaded
 # by putting that directory on sys.path rather than importing as a package.
