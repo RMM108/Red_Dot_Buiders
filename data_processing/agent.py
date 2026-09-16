@@ -492,19 +492,34 @@ def rewrite_query(question: str, history: Optional[list[dict]] = None) -> str:
     return resp.output_text.strip() or question
 
 
-def run_agent(question: str, history: Optional[list[dict]] = None, max_turns: int = MAX_TOOL_TURNS,
-              verbose: bool = False) -> dict:
+MAX_HISTORY_MESSAGES = 20  # ~10 exchanges of real conversation context fed to the main loop
+
+
+def run_agent(question: str, history: Optional[list[dict]] = None, pool: Optional[EvidencePool] = None,
+              max_turns: int = MAX_TOOL_TURNS, verbose: bool = False) -> dict:
+    """`history` is the real prior conversation (list of {"role", "content"}, most
+    recent last) - fed to the model as-is so it can handle corrections, follow-up
+    nuance, and reasoning that spans turns, not just pronoun resolution (that part
+    is still handled separately by rewrite_query, which produces a clean standalone
+    final question on top of this).
+
+    `pool` carries the EvidencePool forward across turns (pass the same instance
+    the caller used on the previous call) so a ref_id cited in an earlier turn
+    stays resolvable - e.g. the model can cite a fact it already retrieved instead
+    of being forced to re-call a tool just to regenerate a valid citation for it.
+    Pass None for a single-shot question with no conversation to carry."""
     rewritten_question = rewrite_query(question, history)
     if verbose and rewritten_question != question:
         print(f"  rewritten query: {rewritten_question!r}")
 
     client = OpenAI()
-    pool = EvidencePool()
-    input_list: list = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": rewritten_question},
-    ]
+    pool = pool if pool is not None else EvidencePool()
+    input_list: list = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for h in (history or [])[-MAX_HISTORY_MESSAGES:]:
+        input_list.append({"role": h["role"], "content": h["content"]})
+    input_list.append({"role": "user", "content": rewritten_question})
     tool_call_log = []
+    n_evidence_before = len(pool.entries)
 
     for _ in range(max_turns):
         kwargs = {"temperature": 0} if SUPPORTS_TEMPERATURE else {}
@@ -530,7 +545,8 @@ def run_agent(question: str, history: Optional[list[dict]] = None, max_turns: in
             "answer": "Could not complete within the tool-call budget.",
             "citations": [], "abstained": True,
             "abstention_reason": f"exceeded {max_turns} tool-call turns",
-            "tool_calls": tool_call_log, "n_evidence_retrieved": len(pool.entries),
+            "tool_calls": tool_call_log, "n_evidence_retrieved": len(pool.entries) - n_evidence_before,
+            "n_evidence_total": len(pool.entries),
             "original_question": question, "rewritten_question": rewritten_question,
         }
 
@@ -548,7 +564,8 @@ def run_agent(question: str, history: Optional[list[dict]] = None, max_turns: in
         "abstained": parsed.abstained,
         "abstention_reason": parsed.abstention_reason,
         "tool_calls": tool_call_log,
-        "n_evidence_retrieved": len(pool.entries),
+        "n_evidence_retrieved": len(pool.entries) - n_evidence_before,
+        "n_evidence_total": len(pool.entries),
         "original_question": question,
         "rewritten_question": rewritten_question,
     }

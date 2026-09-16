@@ -7,12 +7,18 @@ Run with:
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# agent.py and its sibling ingestion modules live in data_processing/ as flat
+# (non-package) modules with bare imports (e.g. `import db`), so they're loaded
+# by putting that directory on sys.path rather than importing as a package.
+sys.path.insert(0, str(Path(__file__).parent / "data_processing"))
 
 st.set_page_config(page_title="Wealth Management AI Copilot", page_icon="\U0001F4C8", layout="centered")
 
@@ -49,6 +55,7 @@ with st.sidebar:
     st.divider()
     if st.button("Clear conversation"):
         st.session_state.messages = []
+        st.session_state.evidence_pool = None
         st.rerun()
 
 st.title("Wealth Management AI Copilot")
@@ -56,6 +63,8 @@ st.caption("Ask a client, product, or policy question. Answers are grounded in r
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "evidence_pool" not in st.session_state:
+    st.session_state.evidence_pool = None
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -99,8 +108,11 @@ if question:
             ]
             with st.spinner("Retrieving evidence..."):
                 try:
-                    from agent import run_agent
-                    result = run_agent(question, history=history, max_turns=max_turns)
+                    from agent import EvidencePool, run_agent
+                    if st.session_state.evidence_pool is None:
+                        st.session_state.evidence_pool = EvidencePool()
+                    result = run_agent(question, history=history, pool=st.session_state.evidence_pool,
+                                       max_turns=max_turns)
                 except Exception as e:
                     result = {
                         "answer": f"Error while running the agent: {e}",
