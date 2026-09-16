@@ -6,5 +6,6 @@ __pycache__/
 .streamlit/
 *.chroma/
 chroma_db/
+qdrant_storage/
 *.db
 data/processed/golden_dataset_for_RAG_evaluation_completed.xlsx
