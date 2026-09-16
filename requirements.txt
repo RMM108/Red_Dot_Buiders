@@ -3,7 +3,6 @@ numpy
 pandas
 scikit-learn
 scipy
-tensorflow
 matplotlib
 seaborn
 plotly
