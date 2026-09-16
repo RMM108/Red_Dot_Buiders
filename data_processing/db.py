@@ -10,7 +10,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent / "data" / "processed" / "wealth_management.db"
+DB_PATH = Path(__file__).parent.parent / "data" / "processed" / "wealth_management.db"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS clients (

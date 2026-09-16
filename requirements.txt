@@ -32,6 +32,9 @@ openpyxl
 # --- Agentic AI ---
 langgraph
 
+# --- Qdrant (persona vector store) ---
+qdrant-client>=1.10
+
 # --- Utilities ---
 python-dotenv
 jupyter

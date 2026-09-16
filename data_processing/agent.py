@@ -1,5 +1,6 @@
-"""Agent orchestrator: wires the 5 tools from PLAN.md §4.2 into a tool-calling
-loop over OpenAI's Responses API (PLAN.md §5 steps 6-7).
+"""Agent orchestrator: wires 6 tools (the 5 from PLAN.md §4.2, plus
+query_portfolio_exposure for cross-client compliance screening) into a
+tool-calling loop over OpenAI's Responses API (PLAN.md §5 steps 6-7).
 
 Design for citations + abstention (§4.2 points 4-5, §4.5's "never re-derived
 by the LLM"): every tool call appends evidence entries to an EvidencePool,
@@ -214,7 +215,9 @@ def tool_query_portfolio_exposure(
     threshold_pct: float = 20.0,
     investor_status: Optional[str] = None,
 ) -> str:
-    """Find holdings whose allocation exceeds a portfolio concentration threshold."""
+    """Find holdings whose allocation exceeds a portfolio concentration threshold -
+    the compliance/supervisor cross-client screening use case (PRD.md user story 4),
+    e.g. "which clients hold Complex Products above the 20% concentration guideline?"."""
 
     conn = db.get_connection()
     query = """

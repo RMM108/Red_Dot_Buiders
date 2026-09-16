@@ -24,7 +24,7 @@ from pypdf import PdfReader
 
 from vector_store import get_chroma_collection, replace_chunks_for
 
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent.parent / "data"
 PDF_PATH = DATA_DIR / "complex_product_risk_acknowledgement_forms.pdf"
 COLLECTION_NAME = "ack_forms"
 

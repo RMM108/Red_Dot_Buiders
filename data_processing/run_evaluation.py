@@ -38,7 +38,7 @@ from agent import run_agent
 
 load_dotenv()
 
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent.parent / "data"
 SOURCE_XLSX = DATA_DIR / "golden_dataset_for_RAG_evaluation.xlsx"
 OUTPUT_XLSX = DATA_DIR / "processed" / "golden_dataset_for_RAG_evaluation_completed.xlsx"
 
@@ -50,6 +50,10 @@ COL = {"query": 3, "expected_answer": 6, "n_relevant_in_kb": 11, "n_key_points_e
        "n_retrieved": 12, "n_relevant_retrieved": 13, "n_key_points_generated": 15,
        "n_claims_supported": 16, "n_claims_total": 17, "remarks": 18}
 
+# Per-row deterministic checks, independent of the LLM-judge call below -
+# a short text fragment the answer must contain for each golden question,
+# used as a mechanical sanity check that doesn't depend on the judge's
+# own (fallible) reading of the answer.
 SCENARIO_REQUIRED_FRAGMENTS = {
     3: ("1", "10,000"),
     4: ("conservative", "acknowledgement", "complaint"),
@@ -77,8 +81,10 @@ def mechanical_checks(
     expected_sources: str,
     required_fragments: tuple[str, ...] = (),
 ) -> dict:
-    """Check evidence contracts without asking an LLM to judge the answer."""
-
+    """Check evidence contracts without asking an LLM to judge the answer:
+    every expected source is actually cited, no citation resolved to an
+    invalid ref_id, and the answer text contains the specific figures/terms
+    the golden answer hinges on (e.g. the LRS headroom numbers for row 5)."""
     citations = result.get("citations", [])
     locators = [citation.get("locator", "") for citation in citations]
     required = [item.strip() for item in expected_sources.split(";") if item.strip()]
@@ -184,8 +190,8 @@ def run_row(ws, row: int) -> dict:
     ws.cell(row, COL["remarks"]).value = remarks
 
     print(f"  abstained={result['abstained']}  factually_correct={judgment.factually_correct}  "
-            f"mechanical_pass={mechanical['passed']}  n_retrieved={result['n_evidence_retrieved']}  "
-            f"n_cited={len(result['citations'])}")
+          f"mechanical_pass={mechanical['passed']}  n_retrieved={result['n_evidence_retrieved']}  "
+          f"n_cited={len(result['citations'])}")
 
     return {
         "row": row, "query": query, "abstained": result["abstained"],
