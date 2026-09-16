@@ -39,6 +39,7 @@ from ingest_complaints import query_complaints
 from ingest_correspondence import query_correspondence
 from ingest_fund_vectors import query_fund_factsheets
 from ingest_policies import query_policy
+from persona import PERSONA_DISPATCH, PERSONA_TOOLS
 
 load_dotenv()
 
@@ -82,6 +83,15 @@ answer confidently, or when retrieved evidence conflicts. A partial, calibrated 
 explicit gap is correct; a confident answer built on missing evidence is not.
 - If a client name is ambiguous (query_client_db returns candidates), ask which client was meant \
 instead of guessing - set abstained=true and list the candidates in abstention_reason.
+- Persona tools (lookup_client_persona, generate_client_persona, generate_personas) summarize \
+observed client records and comparable-client portfolio patterns. Use lookup_client_persona to \
+retrieve one client's stored persona by exact client_id, and generate_client_persona to surface \
+comparable clients for a set of characteristics. Treat persona output as discussion context and \
+review prompts only - it is NOT an investment recommendation and must never be presented as one. \
+If generate_client_persona reports that no comparable clients were found, treat that as missing \
+evidence and set abstained=true rather than inventing a recommendation. Persona output does not \
+replace policy evaluation: still call get_policy_section and get_fund_factsheet before any \
+suitability conclusion.
 """
 
 
@@ -441,6 +451,8 @@ TOOLS = [
             "additionalProperties": False,
         },
     },
+    # Persona tools (defined in persona.py) - expose them to the model.
+    *PERSONA_TOOLS,
 ]
 
 DISPATCH = {
@@ -450,6 +462,7 @@ DISPATCH = {
     "get_fund_factsheet": tool_get_fund_factsheet,
     "get_policy_section": tool_get_policy_section,
     "search_documents": tool_search_documents,
+    **PERSONA_DISPATCH,
 }
 
 

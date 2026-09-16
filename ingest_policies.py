@@ -36,6 +36,7 @@ from pathlib import Path
 from pypdf import PdfReader
 
 from vector_store import CHROMA_DIR, get_chroma_collection, replace_chunks_for
+from rerank import rerank
 
 DATA_DIR = Path(__file__).parent / "data"
 COLLECTION_NAME = "policies"
@@ -225,7 +226,7 @@ def query_policy(question: str, n_results: int = 3, document_code: str | None = 
     candidates.sort(key=lambda c: (not c["keyword_hit"], -(c["similarity"] or 0)))
 
     out = []
-    for c in candidates[:n_results]:
+    for c in candidates[: max(n_results * 3, 6)]:
         meta = c["meta"]
         out.append({
             "policy_name": meta["policy_name"],
@@ -234,7 +235,10 @@ def query_policy(question: str, n_results: int = 3, document_code: str | None = 
             "similarity": c["similarity"],
             "text": c["doc"],
         })
-    return out
+    # Cross-encoder re-rank within the keyword-boosted candidate set. Chunks
+    # containing the exact numeric token stay high (the cross-encoder scores
+    # them jointly against the query), while the overall ordering improves.
+    return rerank(question, out, keep=n_results)
 
 
 # --------------------------------------------------------------------------

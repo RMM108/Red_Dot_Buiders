@@ -27,6 +27,7 @@ import json
 from pathlib import Path
 
 from vector_store import get_chroma_collection, replace_chunks_for
+from rerank import rerank
 
 PROCESSED_DIR = Path(__file__).parent / "data" / "processed"
 FUNDS_JSON = PROCESSED_DIR / "fund_factsheets_structured.json"
@@ -80,7 +81,9 @@ def ingest_fund(fund: dict, collection) -> dict:
 def query_fund_factsheets(question: str, n_results: int = 3, fund_name: str | None = None) -> list[dict]:
     collection = get_chroma_collection(COLLECTION_NAME)
     where = {"fund_name": fund_name} if fund_name else None
-    results = collection.query(query_texts=[question], n_results=n_results, where=where)
+    # Fetch a wider candidate pool than requested, then cross-encoder re-rank
+    # down to n_results (see rerank.py).
+    results = collection.query(query_texts=[question], n_results=max(n_results * 3, 6), where=where)
 
     out = []
     for doc, meta, dist in zip(results["documents"][0], results["metadatas"][0], results["distances"][0]):
@@ -91,7 +94,7 @@ def query_fund_factsheets(question: str, n_results: int = 3, fund_name: str | No
             "similarity": round(1 - dist, 4),
             "text": doc,
         })
-    return out
+    return rerank(question, out, keep=n_results)
 
 
 def main() -> int:
