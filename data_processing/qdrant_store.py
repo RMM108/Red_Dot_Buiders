@@ -1,14 +1,18 @@
-"""Shared Qdrant connection helper - the Qdrant-backed counterpart to
-vector_store.py, used by ingest_call_notes.py and ingest_complaints.py (the two
-persona documents moved off Chroma, per PLAN.md's Qdrant persona-vector-store
-feature). Every other collection (policies, fund_factsheets, correspondence,
-ack_forms) stays on Chroma via vector_store.py, untouched.
+"""Shared Qdrant connection helper - a Qdrant-backed counterpart to
+vector_store.py, prepared for moving call_notes/complaints off Chroma onto a
+server-backed vector DB (see PRD.md §13's "server-backed vector DB" future
+consideration) if concurrent access or scale ever require it.
+
+Not currently imported by any ingest script - vector_store.py/Chroma remains
+the store actually used end to end for all 6 collections. Requires a running
+Qdrant instance (docker-compose.yml at the repo root: `docker compose up`)
+and QDRANT_URL in .env to do anything.
 
 Qdrant has no built-in embedding function like Chroma's
 embedding_functions.OpenAIEmbeddingFunction, so embedding is done explicitly
 here via the OpenAI SDK, using the same model as vector_store.py
 (text-embedding-3-small) to keep retrieval behavior comparable across both
-stores.
+stores if this is wired in later.
 """
 
 from __future__ import annotations
@@ -32,7 +36,7 @@ from qdrant_client.models import (
 
 import db
 
-load_dotenv(dotenv_path=Path(__file__).parent / ".env")
+load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
 
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
 EMBEDDING_MODEL = "text-embedding-3-small"

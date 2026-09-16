@@ -50,6 +50,62 @@ COL = {"query": 3, "expected_answer": 6, "n_relevant_in_kb": 11, "n_key_points_e
        "n_retrieved": 12, "n_relevant_retrieved": 13, "n_key_points_generated": 15,
        "n_claims_supported": 16, "n_claims_total": 17, "remarks": 18}
 
+# Per-row deterministic checks, independent of the LLM-judge call below -
+# a short text fragment the answer must contain for each golden question,
+# used as a mechanical sanity check that doesn't depend on the judge's
+# own (fallible) reading of the answer.
+SCENARIO_REQUIRED_FRAGMENTS = {
+    3: ("1", "10,000"),
+    4: ("conservative", "acknowledgement", "complaint"),
+    5: ("40,000", "60,000", "20,000"),
+    6: ("ambiguous", "retail", "accredited"),
+    7: ("de-risk", "pending"),
+}
+
+
+def _source_matches(expected: str, locator: str) -> bool:
+    expected_name = expected.split("(", 1)[0].strip().casefold()
+    locator_text = locator.casefold()
+    if expected_name in locator_text:
+        return True
+    aliases = {
+        "policy_investment_suitability.pdf": ("pol-inv-011", "investment suitability"),
+        "policy_kyc_onboarding.pdf": ("pol-kyc-004", "kyc", "onboarding"),
+        "fund_factsheet_safe.pdf": ("fund_factsheet_safe", "apac stable income"),
+    }
+    return any(alias in locator_text for alias in aliases.get(expected_name, ()))
+
+
+def mechanical_checks(
+    result: dict,
+    expected_sources: str,
+    required_fragments: tuple[str, ...] = (),
+) -> dict:
+    """Check evidence contracts without asking an LLM to judge the answer:
+    every expected source is actually cited, no citation resolved to an
+    invalid ref_id, and the answer text contains the specific figures/terms
+    the golden answer hinges on (e.g. the LRS headroom numbers for row 5)."""
+    citations = result.get("citations", [])
+    locators = [citation.get("locator", "") for citation in citations]
+    required = [item.strip() for item in expected_sources.split(";") if item.strip()]
+    missing_sources = [
+        source for source in required
+        if not any(_source_matches(source, locator) for locator in locators)
+    ]
+    invalid_refs = [
+        citation.get("ref_id")
+        for citation in citations
+        if str(citation.get("locator", "")).startswith("INVALID ref_id")
+    ]
+    answer = (result.get("answer") or "").casefold()
+    missing_fragments = [fragment for fragment in required_fragments if fragment.casefold() not in answer]
+    return {
+        "passed": not missing_sources and not invalid_refs and not missing_fragments,
+        "missing_sources": missing_sources,
+        "invalid_refs": invalid_refs,
+        "missing_fragments": missing_fragments,
+    }
+
 
 class EvalJudgment(BaseModel):
     factually_correct: bool
@@ -107,10 +163,17 @@ def run_row(ws, row: int) -> dict:
 
     locators = [c["locator"] for c in result["citations"]]
     sources = sorted({loc.split(" (")[0] for loc in locators})
+    mechanical = mechanical_checks(
+        result,
+        ws.cell(row, 4).value or "",
+        SCENARIO_REQUIRED_FRAGMENTS.get(row, ()),
+    )
 
     judgment = judge_response(query, expected_answer, n_key_points_expected, result["answer"], result["citations"])
 
     remarks = judgment.remarks
+    if not mechanical["passed"]:
+        remarks = f"[mechanical checks failed: {mechanical}] {remarks}"
     if result["abstained"]:
         remarks = f"[agent abstained: {result['abstention_reason']}] {remarks}"
     remarks = f"[LLM-judge auto-grade, review recommended] {remarks}"
@@ -127,7 +190,8 @@ def run_row(ws, row: int) -> dict:
     ws.cell(row, COL["remarks"]).value = remarks
 
     print(f"  abstained={result['abstained']}  factually_correct={judgment.factually_correct}  "
-          f"n_retrieved={result['n_evidence_retrieved']}  n_cited={len(result['citations'])}")
+          f"mechanical_pass={mechanical['passed']}  n_retrieved={result['n_evidence_retrieved']}  "
+          f"n_cited={len(result['citations'])}")
 
     return {
         "row": row, "query": query, "abstained": result["abstained"],
@@ -136,6 +200,7 @@ def run_row(ws, row: int) -> dict:
         "n_relevant_in_kb": ws.cell(row, COL["n_relevant_in_kb"]).value,
         "n_key_points_expected": n_key_points_expected, "key_points_covered": judgment.key_points_covered,
         "n_claims_total": judgment.n_claims_in_response, "n_claims_supported": judgment.n_claims_supported,
+        "mechanical_pass": mechanical["passed"],
     }
 
 

@@ -1,5 +1,6 @@
-"""Agent orchestrator: wires the 5 tools from PLAN.md §4.2 into a tool-calling
-loop over OpenAI's Responses API (PLAN.md §5 steps 6-7).
+"""Agent orchestrator: wires 6 tools (the 5 from PLAN.md §4.2, plus
+query_portfolio_exposure for cross-client compliance screening) into a
+tool-calling loop over OpenAI's Responses API (PLAN.md §5 steps 6-7).
 
 Design for citations + abstention (§4.2 points 4-5, §4.5's "never re-derived
 by the LLM"): every tool call appends evidence entries to an EvidencePool,
@@ -163,7 +164,13 @@ def tool_query_client_db(pool: EvidencePool, client_id_or_name: str) -> str:
     return json.dumps({"ref_id": ref_id, "content": text})
 
 
-def tool_query_transactions(pool: EvidencePool, client_id_or_name: str, status: Optional[str] = None) -> str:
+def tool_query_transactions(
+    pool: EvidencePool,
+    client_id_or_name: str,
+    status: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+) -> str:
     resolution = _resolve_client_id(client_id_or_name)
     if resolution.get("ambiguous") or resolution.get("found") is False:
         return json.dumps({"error": f"could not resolve client {client_id_or_name!r}", **resolution})
@@ -175,6 +182,12 @@ def tool_query_transactions(pool: EvidencePool, client_id_or_name: str, status: 
     if status:
         query += " AND status = ?"
         params.append(status)
+    if date_from:
+        query += " AND date >= ?"
+        params.append(date_from)
+    if date_to:
+        query += " AND date <= ?"
+        params.append(date_to)
     rows = [dict(r) for r in conn.execute(query, params)]
     conn.close()
 
@@ -187,8 +200,67 @@ def tool_query_transactions(pool: EvidencePool, client_id_or_name: str, status: 
         for r in rows
     )
     ref_id = f"transactions_{client_id}"
-    pool.add(ref_id, f"transactions.csv ({client_id})", text)
+    locator = f"transactions.csv ({client_id}"
+    if date_from:
+        locator += f", from={date_from}"
+    if date_to:
+        locator += f", to={date_to}"
+    pool.add(ref_id, locator + ")", text)
     return json.dumps({"ref_id": ref_id, "content": text})
+
+
+def tool_query_portfolio_exposure(
+    pool: EvidencePool,
+    product_type: str = "Complex Product",
+    threshold_pct: float = 20.0,
+    investor_status: Optional[str] = None,
+) -> str:
+    """Find holdings whose allocation exceeds a portfolio concentration threshold -
+    the compliance/supervisor cross-client screening use case (PRD.md user story 4),
+    e.g. "which clients hold Complex Products above the 20% concentration guideline?"."""
+
+    conn = db.get_connection()
+    query = """
+        SELECT c.client_id, c.name, c.investor_status, h.product_name,
+               h.asset_class, h.allocation_pct
+        FROM holdings AS h
+        JOIN clients AS c ON c.client_id = h.client_id
+        WHERE h.allocation_pct > ?
+          AND (
+              lower(h.asset_class) LIKE '%complex%'
+              OR lower(h.asset_class) LIKE '%structured%'
+              OR lower(h.asset_class) LIKE '%specified investment%'
+          )
+    """
+    params: list[object] = [threshold_pct]
+    if investor_status:
+        query += " AND lower(c.investor_status) = lower(?)"
+        params.append(investor_status)
+    rows = [dict(row) for row in conn.execute(query, params)]
+    conn.close()
+
+    if not rows:
+        return json.dumps({
+            "content": (
+                f"No {product_type} holdings exceed {threshold_pct:.2f}%"
+                + (f" for investor_status={investor_status}" if investor_status else "")
+                + "."
+            )
+        })
+
+    text = "\n".join(
+        f"  - {row['client_id']} ({row['name']}), investor_status={row['investor_status']}: "
+        f"{row['product_name']} [{row['asset_class']}] at {row['allocation_pct']}%"
+        for row in rows
+    )
+    ref_id = f"portfolio_exposure_{threshold_pct:g}"
+    pool.add(ref_id, "clients_portfolio.csv (complex-product concentration)", text)
+    return json.dumps({
+        "ref_id": ref_id,
+        "content": (
+            f"{product_type} holdings above {threshold_pct:.2f}% allocation:\n{text}"
+        ),
+    })
 
 
 def tool_get_fund_factsheet(pool: EvidencePool, product_name: str) -> str:
@@ -302,8 +374,25 @@ TOOLS = [
             "properties": {
                 "client_id_or_name": {"type": "string"},
                 "status": {"type": ["string", "null"], "description": "Optional filter, e.g. 'Pending' or 'Settled'"},
+                "date_from": {"type": ["string", "null"], "description": "Optional inclusive ISO date lower bound"},
+                "date_to": {"type": ["string", "null"], "description": "Optional inclusive ISO date upper bound"},
             },
-            "required": ["client_id_or_name", "status"],
+            "required": ["client_id_or_name", "status", "date_from", "date_to"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "type": "function",
+        "name": "query_portfolio_exposure",
+        "description": "Find client holdings above a concentration threshold for Complex or Structured Products, optionally filtered by investor status.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "product_type": {"type": "string", "description": "Product category, normally 'Complex Product'"},
+                "threshold_pct": {"type": "number", "description": "Strict allocation threshold, e.g. 20"},
+                "investor_status": {"type": ["string", "null"], "description": "Optional exact investor-status filter"},
+            },
+            "required": ["product_type", "threshold_pct", "investor_status"],
             "additionalProperties": False,
         },
     },
@@ -360,6 +449,7 @@ TOOLS = [
 DISPATCH = {
     "query_client_db": tool_query_client_db,
     "query_transactions": tool_query_transactions,
+    "query_portfolio_exposure": tool_query_portfolio_exposure,
     "get_fund_factsheet": tool_get_fund_factsheet,
     "get_policy_section": tool_get_policy_section,
     "search_documents": tool_search_documents,

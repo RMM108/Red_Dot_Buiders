@@ -21,7 +21,7 @@ from ingest_policies import split_into_sections
 from run_evaluation import mechanical_checks
 
 
-ROOT = Path(__file__).parent
+ROOT = Path(__file__).parent.parent
 DATA = ROOT / "data"
 
 

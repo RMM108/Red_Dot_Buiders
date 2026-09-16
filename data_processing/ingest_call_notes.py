@@ -23,6 +23,7 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
+from chunking import paragraph_chunks
 from vector_store import get_chroma_collection, replace_chunks_for
 
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -40,8 +41,16 @@ def extract_text(pdf_path: Path) -> str:
 
 
 def split_entries(text: str) -> list[dict]:
+    """One chunk per "CLxxx - Name" entry. Falls back to plain paragraph
+    chunking (chunking.py) if a future call-notes log doesn't use this
+    header pattern at all, so it still gets ingested rather than skipped -
+    same fallback shape as ingest_policies.py's section splitting."""
     text = FOOTER_RE.sub("", text).strip()
     matches = list(ENTRY_HEADER_RE.finditer(text))
+
+    if not matches:
+        return [{"client_id": None, "date": None, "has_flag": "FLAG:" in chunk, "text": chunk}
+                for chunk in paragraph_chunks(text)]
 
     entries = []
     for i, m in enumerate(matches):
@@ -69,7 +78,7 @@ def ingest(pdf_path: Path = PDF_PATH) -> dict:
         docs.append(e["text"])
         metadatas.append({
             "source_file": pdf_path.name,
-            "client_id": e["client_id"],
+            "client_id": e["client_id"] or "",
             "date": e["date"] or "",
             "has_flag": e["has_flag"],
         })
