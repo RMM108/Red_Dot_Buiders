@@ -80,7 +80,7 @@ for message in st.session_state.messages:
                 if show_citations and result["citations"]:
                     with st.expander(f"Citations ({len(result['citations'])})"):
                         for c in result["citations"]:
-                            st.markdown(f"**[{c['ref_id']}]** {c['locator']}")
+                            st.markdown(f"**[{c['ref_id']}]** {c.get('apa') or c['locator']}")
                 if show_tool_calls and result["tool_calls"]:
                     with st.expander(f"Tool calls ({len(result['tool_calls'])})"):
                         for t in result["tool_calls"]:
@@ -130,7 +130,7 @@ if question:
             if show_citations and result["citations"]:
                 with st.expander(f"Citations ({len(result['citations'])})"):
                     for c in result["citations"]:
-                        st.markdown(f"**[{c['ref_id']}]** {c['locator']}")
+                        st.markdown(f"**[{c['ref_id']}]** {c.get('apa') or c['locator']}")
             if show_tool_calls and result["tool_calls"]:
                 with st.expander(f"Tool calls ({len(result['tool_calls'])})"):
                     for t in result["tool_calls"]:

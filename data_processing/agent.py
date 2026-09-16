@@ -24,6 +24,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import re
 import sys
 from typing import Optional
 
@@ -69,6 +70,11 @@ part of a multi-part question (e.g. a question about a client's holding may need
 get_fund_factsheet, AND get_policy_section together).
 - Cite every factual claim by the ref_id(s) shown in the tool results. Never write a citation or \
 locator yourself - only use ref_ids you actually received from a tool.
+- Tool results show each source's text as numbered paragraphs, e.g. "[2] ...". When a specific \
+paragraph is what actually supports a claim, set that citation's paragraph to that exact number so \
+the user can jump straight to it. Only use a number you actually saw printed next to that ref_id's \
+text - never estimate or invent one. Leave paragraph unset when a source has no numbering shown (a \
+single short paragraph) or when the claim draws on the source as a whole rather than one specific part.
 - If get_fund_factsheet returns an error (no fact sheet on file), do not guess the product's risk \
 rating or terms from its name - report that the fact sheet is missing.
 - If the question references a specific conversation, discussion, call, or email (e.g. "as of his \
@@ -110,6 +116,7 @@ suitability conclusion.
 
 class Citation(BaseModel):
     ref_id: str
+    paragraph: Optional[int] = None
 
 
 class AgentAnswer(BaseModel):
@@ -139,6 +146,112 @@ class EvidencePool:
 # --------------------------------------------------------------------------
 # Tool implementations - each returns (evidence_entries, text_for_model)
 # --------------------------------------------------------------------------
+
+_YEAR_RE = re.compile(r"\b(19|20)\d{2}\b")
+FIRM_NAME = "Meridian Peak Wealth Partners"
+
+
+def _apa_citation(locator: str, quoted_text: Optional[str]) -> str:
+    """APA-style in-text citation built only from data already in `locator` -
+    these are internal firm records rather than published works, so there's
+    no separate "author"/"title" metadata to draw on; the firm name stands in
+    for the author, and the locator's own document/section/page/paragraph
+    detail (already validated, never model-authored) fills the rest, the
+    way a page number normally would. `quoted_text` is the model-cited
+    paragraph's real text, so a claim is shown as an actual excerpt, not a
+    paraphrase - never freehand quoted by the model itself."""
+    year_match = _YEAR_RE.search(locator)
+    year = year_match.group(0) if year_match else "2026"
+    attribution = f"{FIRM_NAME}, {year}, {locator}"
+    return f'"{quoted_text}" ({attribution})' if quoted_text else f"({attribution})"
+
+
+def _with_page(locator: str, page: Optional[str]) -> str:
+    """Append a page locator (e.g. "p.4" or "pp.4-5") to a citation string
+    when the ingest pipeline recovered one for this chunk - see
+    chunking.page_range_for_span (regex-chunked PDFs) and
+    ingest_fund_vectors.page_for_snippets (VLM-extracted fact sheet fields)."""
+    return f"{locator}, {page}" if page else locator
+
+
+_BULLET_LINE_RE = re.compile(r"^\s*[\x7f•*]\s+|^\s*-\s+")
+_LABEL_LINE_RE = re.compile(r"^\s*[A-Za-z][\w /()&]{1,40}:\s")
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z])")
+
+
+def _is_structural_anchor(line: str) -> bool:
+    """A line that reliably starts a new citable unit on its own: a bullet
+    ("- Product Name...", the policy PDFs' "\x7f " glyph bullets) or a
+    "Label: value" field (e.g. "Date: 2026-01-20", "FLAG: ..."). Distinct
+    from a plain wrapped continuation line, which starts mid-sentence."""
+    return bool(_BULLET_LINE_RE.match(line) or _LABEL_LINE_RE.match(line))
+
+
+def split_paragraphs(text: str) -> list[str]:
+    """Split a piece of evidence text into citable paragraphs. Used both to
+    number paragraphs for the model to cite by (format_evidence_text) and,
+    later, to check a claimed paragraph number is real (run_agent's citation
+    resolution) - the same function drives both sides so the numbering
+    always matches.
+
+    Three cases, in order:
+    1. Blank-line-separated paragraphs, where the source actually has them.
+    2. A source with structural anchors (bullets / "Label: value" rows, e.g.
+       a policy section's numbered sub-points or a call note's "FLAG:" /
+       "Summary:" fields): group each anchor with any wrapped continuation
+       lines that follow it, so e.g. the policy's "20%" bullet stays one
+       clean unit instead of being cut at the PDF's line-wrap point.
+    3. Plain prose with no structural markers at all (a complaint letter's
+       body): pypdf's extract_text() wraps lines at the page width, not at
+       sentence boundaries - "I do\\nnot recall" is one sentence split
+       mid-word, not two paragraphs. Rejoin everything into one blob and
+       split on sentence boundaries instead, the finest unit that's still
+       safe to cite without cutting a claim in half. (Known limitation: a
+       short abbreviation like "Pte." before a capitalized word can trigger
+       a spurious split - acceptable here since it mainly affects
+       letterhead/header text, not the substantive sentences that actually
+       get cited.)"""
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()]
+    if len(blocks) > 1:
+        return blocks
+
+    lines = [line.strip() for line in text.strip().split("\n") if line.strip()]
+    if not lines:
+        return []
+
+    anchor_fraction = sum(1 for l in lines if _is_structural_anchor(l)) / len(lines)
+    if anchor_fraction < 0.15:
+        rejoined = re.sub(r"\s+", " ", text).strip()
+        sentences = [s.strip() for s in _SENTENCE_SPLIT_RE.split(rejoined) if s.strip()]
+        return sentences or [rejoined]
+
+    groups: list[str] = []
+    buf = ""
+    for line in lines:
+        if not buf or _is_structural_anchor(line):
+            if buf:
+                groups.append(buf)
+            # Strip a pure bullet glyph (not a "Label:" prefix, which is
+            # real content) so a quoted citation reads as clean prose
+            # instead of carrying the PDF's raw bullet character along.
+            buf = _BULLET_LINE_RE.sub("", line, count=1)
+        else:
+            buf = f"{buf} {line}"
+    if buf:
+        groups.append(buf)
+    return groups
+
+
+def format_evidence_text(text: str) -> str:
+    """Render `text` as numbered paragraphs (e.g. "[2] ...") for the model to
+    optionally cite a specific paragraph from - see Citation.paragraph and
+    the SYSTEM_PROMPT rule on when to set it. A single-paragraph source is
+    left unnumbered since there's nothing to disambiguate."""
+    paragraphs = split_paragraphs(text)
+    if len(paragraphs) <= 1:
+        return text
+    return "\n".join(f"[{i + 1}] {p}" for i, p in enumerate(paragraphs))
+
 
 def _resolve_client_id(client_id_or_name: str) -> dict:
     s = client_id_or_name.strip().upper()
@@ -183,7 +296,7 @@ def tool_query_client_db(pool: EvidencePool, client_id_or_name: str) -> str:
     )
     ref_id = f"client_{client_id}"
     pool.add(ref_id, f"clients_portfolio.json ({client_id})", text)
-    return json.dumps({"ref_id": ref_id, "content": text})
+    return json.dumps({"ref_id": ref_id, "content": format_evidence_text(text)})
 
 
 def tool_query_transactions(
@@ -228,7 +341,7 @@ def tool_query_transactions(
     if date_to:
         locator += f", to={date_to}"
     pool.add(ref_id, locator + ")", text)
-    return json.dumps({"ref_id": ref_id, "content": text})
+    return json.dumps({"ref_id": ref_id, "content": format_evidence_text(text)})
 
 
 def tool_query_portfolio_exposure(
@@ -280,7 +393,7 @@ def tool_query_portfolio_exposure(
     return json.dumps({
         "ref_id": ref_id,
         "content": (
-            f"{product_type} holdings above {threshold_pct:.2f}% allocation:\n{text}"
+            f"{product_type} holdings above {threshold_pct:.2f}% allocation:\n{format_evidence_text(text)}"
         ),
     })
 
@@ -311,11 +424,11 @@ def tool_get_fund_factsheet(pool: EvidencePool, product_name: str) -> str:
     sql_ref_id = f"factsheet_sql_{fund_name}"
     pool.add(sql_ref_id, f"{source_file} (structured fields)", sql_text)
 
-    contents = [f"[{sql_ref_id}] {sql_text}"]
+    contents = [f"[{sql_ref_id}] {format_evidence_text(sql_text)}"]
     for r in query_fund_factsheets(product_name, n_results=3, fund_name=fund_name):
         vec_ref_id = f"factsheet_vec_{fund_name}_{r['section']}"
-        pool.add(vec_ref_id, f"{source_file} ({r['section']})", r["text"])
-        contents.append(f"[{vec_ref_id}] {r['text']}")
+        pool.add(vec_ref_id, _with_page(f"{source_file} ({r['section']})", r.get("page")), r["text"])
+        contents.append(f"[{vec_ref_id}] {format_evidence_text(r['text'])}")
 
     return json.dumps({"content": "\n\n".join(contents)})
 
@@ -329,8 +442,8 @@ def tool_get_policy_section(pool: EvidencePool, query: str, document_code: Optio
     for r in results:
         section_num = r["section"].split(":")[0].replace("Section ", "").strip() if "Section" in r["section"] else "x"
         ref_id = f"policy_{r['document_code']}_s{section_num}"
-        pool.add(ref_id, f"{r['policy_name']} {r['section']}", r["text"])
-        contents.append(f"[{ref_id}] {r['policy_name']} {r['section']}:\n{r['text']}")
+        pool.add(ref_id, _with_page(f"{r['policy_name']} {r['section']}", r.get("page")), r["text"])
+        contents.append(f"[{ref_id}] {r['policy_name']} {r['section']}:\n{format_evidence_text(r['text'])}")
 
     return json.dumps({"content": "\n\n".join(contents)})
 
@@ -343,32 +456,32 @@ def tool_search_documents(pool: EvidencePool, query: str, doc_types: Optional[li
     if "call_notes" in doc_types:
         for r in query_call_notes(query, n_results=2, client_id=client_id):
             ref_id = f"call_note_{r['client_id']}_{r['date']}"
-            pool.add(ref_id, f"rm_call_notes_log.pdf ({r['client_id']}, {r['date']})", r["text"])
-            contents.append(f"[{ref_id}] {r['text']}")
+            pool.add(ref_id, _with_page(f"rm_call_notes_log.pdf ({r['client_id']}, {r['date']})", r.get("page")), r["text"])
+            contents.append(f"[{ref_id}] {format_evidence_text(r['text'])}")
 
     if "complaints" in doc_types:
         for r in query_complaints(query, n_results=2, client_id=client_id):
             ref_id = f"complaint_{r['complaint_ref']}"
-            pool.add(ref_id, f"client_complaint_letters.pdf ({r['complaint_ref']})", r["text"])
-            contents.append(f"[{ref_id}] {r['text']}")
+            pool.add(ref_id, _with_page(f"client_complaint_letters.pdf ({r['complaint_ref']})", r.get("page")), r["text"])
+            contents.append(f"[{ref_id}] {format_evidence_text(r['text'])}")
 
     if "correspondence" in doc_types:
         for r in query_correspondence(query, n_results=2, client_id=client_id):
             ref_id = f"correspondence_{r['thread_id']}"
             pool.add(ref_id, f"client_correspondence.json ({r['thread_id']}: {r['subject']})", r["text"])
-            contents.append(f"[{ref_id}] {r['text']}")
+            contents.append(f"[{ref_id}] {format_evidence_text(r['text'])}")
 
     if "ack_forms" in doc_types:
         for r in query_ack_forms(query, n_results=2, client_id=client_id):
             ref_id = f"ack_form_{r['client_id'] or 'unknown'}"
-            pool.add(ref_id, f"complex_product_risk_acknowledgement_forms.pdf ({r['client_id']})", r["text"])
-            contents.append(f"[{ref_id}] {r['text']}")
+            pool.add(ref_id, _with_page(f"complex_product_risk_acknowledgement_forms.pdf ({r['client_id']})", r.get("page")), r["text"])
+            contents.append(f"[{ref_id}] {format_evidence_text(r['text'])}")
 
     if "fund_factsheets" in doc_types:
         for r in query_fund_factsheets(query, n_results=2):
             ref_id = f"factsheet_vec_{r['fund_name']}_{r['section']}"
-            pool.add(ref_id, f"fund_factsheet ({r['fund_name']}, {r['section']})", r["text"])
-            contents.append(f"[{ref_id}] {r['text']}")
+            pool.add(ref_id, _with_page(f"fund_factsheet ({r['fund_name']}, {r['section']})", r.get("page")), r["text"])
+            contents.append(f"[{ref_id}] {format_evidence_text(r['text'])}")
 
     if not contents:
         return json.dumps({"error": "no matching documents found"})
@@ -567,9 +680,30 @@ def run_agent(question: str, history: Optional[list[dict]] = None, pool: Optiona
     for c in parsed.citations:
         entry = pool.resolve(c.ref_id)
         if entry:
-            resolved_citations.append({"ref_id": c.ref_id, "locator": entry["locator"], "text": entry["text"]})
+            locator = entry["locator"]
+            quoted_text = None
+            # A paragraph number is only meaningful (and only ever shown to
+            # the model) when the source had more than one; validate against
+            # the real count rather than trusting the model's number as-is -
+            # same "never re-derived by the LLM" principle as ref_id itself.
+            if c.paragraph is not None:
+                paragraphs = split_paragraphs(entry["text"])
+                if len(paragraphs) > 1 and 1 <= c.paragraph <= len(paragraphs):
+                    locator = f"{locator}, para {c.paragraph}"
+                    quoted_text = paragraphs[c.paragraph - 1]
+            resolved_citations.append({
+                "ref_id": c.ref_id,
+                "locator": locator,
+                "text": quoted_text or entry["text"],
+                "apa": _apa_citation(locator, quoted_text),
+            })
         else:
-            resolved_citations.append({"ref_id": c.ref_id, "locator": "INVALID ref_id (model cited a source it never received)", "text": None})
+            resolved_citations.append({
+                "ref_id": c.ref_id,
+                "locator": "INVALID ref_id (model cited a source it never received)",
+                "text": None,
+                "apa": None,
+            })
 
     return {
         "answer": parsed.answer,
@@ -591,7 +725,7 @@ def print_result(result: dict) -> None:
     print(f"\nAbstained: {result['abstained']}" + (f" ({result['abstention_reason']})" if result["abstention_reason"] else ""))
     print(f"\nCitations ({len(result['citations'])}):")
     for c in result["citations"]:
-        print(f"  [{c['ref_id']}] {c['locator']}")
+        print(f"  [{c['ref_id']}] {c.get('apa') or c['locator']}")
     print(f"\nTool calls: {[t['tool'] for t in result['tool_calls']]}")
     print(f"Evidence retrieved: {result['n_evidence_retrieved']}")
 

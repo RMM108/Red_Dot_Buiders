@@ -26,6 +26,7 @@ from pypdf import PdfReader
 # sure it's importable regardless of how this script is invoked.
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from chunking import extract_page_offsets, page_range_for_span
 from vector_store import get_chroma_collection, replace_chunks_for
 from rerank import rerank
 
@@ -43,7 +44,9 @@ def extract_text(pdf_path: Path) -> str:
     return "\n".join(p.extract_text() or "" for p in reader.pages)
 
 
-def split_records(text: str) -> list[dict]:
+def split_records(text: str, page_offsets: list[int] | None = None) -> list[dict]:
+    """`page_offsets` (from chunking.extract_page_offsets) is optional so this
+    stays callable with just `text`, as existing tests do."""
     text = FOOTER_RE.sub("", text).strip()
     matches = list(RECORD_HEADER_RE.finditer(text))
 
@@ -58,6 +61,7 @@ def split_records(text: str) -> list[dict]:
             "record_type": "blank_template" if is_blank else "completed",
             "is_blank_template": is_blank,
             "client_id": client_m.group(1) if client_m else None,
+            "page": page_range_for_span(page_offsets, start, end) if page_offsets else None,
             "text": record_text,
         })
     return records
@@ -66,7 +70,8 @@ def split_records(text: str) -> list[dict]:
 def ingest(pdf_path: Path = PDF_PATH) -> dict:
     collection = get_chroma_collection(COLLECTION_NAME)
     text = extract_text(pdf_path)
-    records = split_records(text)
+    page_offsets = extract_page_offsets(pdf_path)
+    records = split_records(text, page_offsets)
 
     ids, docs, metadatas = [], [], []
     for i, rec in enumerate(records):
@@ -76,6 +81,7 @@ def ingest(pdf_path: Path = PDF_PATH) -> dict:
             "source_file": pdf_path.name,
             "client_id": rec["client_id"] or "",
             "is_blank_template": rec["is_blank_template"],
+            "page": rec["page"] or "",
         })
 
     n_replaced = replace_chunks_for(collection, "source_file", pdf_path.name, ids, docs, metadatas)
@@ -99,6 +105,7 @@ def query_ack_forms(question: str, n_results: int = 3, client_id: str | None = N
         out.append({
             "client_id": meta["client_id"],
             "is_blank_template": meta["is_blank_template"],
+            "page": meta.get("page") or None,
             "similarity": round(1 - dist, 4),
             "text": doc,
         })
